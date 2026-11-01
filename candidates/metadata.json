@@ -1,0 +1,132 @@
+{
+  "chinese": "你好，我想设计一种自然、温暖、清晰的声音。",
+  "english": "Hello, I am designing a voice that sounds natural, warm, and clear.",
+  "candidates": [
+    {
+      "file": "eddy_pminus3_bminus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": -3.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pminus3_bplus0.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": -3.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pminus3_bplus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": -3.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus0_bminus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 0.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus0_bplus0.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 0.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus0_bplus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 0.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus3_bminus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 3.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus3_bplus0.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 3.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "eddy_pplus3_bplus3.wav",
+      "base_voice": "eddy",
+      "pitch_semitones": 3.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pminus3_bminus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": -3.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pminus3_bplus0.wav",
+      "base_voice": "flo",
+      "pitch_semitones": -3.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pminus3_bplus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": -3.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus0_bminus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 0.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus0_bplus0.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 0.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus0_bplus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 0.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus3_bminus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 3.0,
+      "brightness_db": -3.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus3_bplus0.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 3.0,
+      "brightness_db": 0.0,
+      "rate_wpm": 180
+    },
+    {
+      "file": "flo_pplus3_bplus3.wav",
+      "base_voice": "flo",
+      "pitch_semitones": 3.0,
+      "brightness_db": 3.0,
+      "rate_wpm": 180
+    }
+  ]
+}

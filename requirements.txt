@@ -1,0 +1,2 @@
+ChatTTS==0.2.5
+transformers>=4.41.1,<5

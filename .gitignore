@@ -1,0 +1,18 @@
+# Local environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+
+# Downloaded model cache (generated locally; can exceed 1 GB)
+models/
+
+# Generated runtime output and logs
+outputs/
+start.log
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
