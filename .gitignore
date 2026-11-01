@@ -7,6 +7,9 @@ __pycache__/
 models/
 data/
 
+# Generated candidate audio
+candidates/*.wav
+
 # Generated runtime output and logs
 outputs/
 start.log
