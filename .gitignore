@@ -3,8 +3,9 @@
 __pycache__/
 *.py[cod]
 
-# Downloaded model cache (generated locally; can exceed 1 GB)
+# Downloaded model cache and local data (generated locally)
 models/
+data/
 
 # Generated runtime output and logs
 outputs/
