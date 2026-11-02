@@ -6,9 +6,13 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import importlib.util
+import io
 import json
+import lzma
+import math
 import os
 import shutil
+import struct
 import subprocess
 import tempfile
 import threading
@@ -17,19 +21,271 @@ import uuid
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 ROOT = Path(__file__).resolve().parent
 UI_FILE = ROOT / "voice_design_ui.html"
+LAB_FILE = ROOT / "speaker_lab.html"
 OUTPUT_DIR = ROOT / "outputs"
 MODEL_DIR = ROOT / "models" / "huggingface"
 SPEAKER_FILE = ROOT / "data" / "chattts_speakers.json"
+CUSTOM_FILE = ROOT / "data" / "custom_speakers.json"
+EMBED_DIM = 768
+SAMPLE_RATE = 24000
+MAX_UPLOAD_BYTES = 40 * 1024 * 1024
+MAX_PROMPT_SECONDS = 12
+LZMA_RAW_FILTERS = [{"id": lzma.FILTER_LZMA2, "preset": 9 | lzma.PRESET_EXTREME}]
 VOICE_COUNT = 60
 VOICE_CARDS = [
     {"id": f"speaker_{index:03d}", "name": f"普通话音色 {index:02d}"}
     for index in range(1, VOICE_COUNT + 1)
 ]
+FIXED_NAMES = {card["id"]: card["name"] for card in VOICE_CARDS}
+_custom_lock = threading.Lock()
+
+
+# ---------------------------------------------------------------- voice codec
+# ChatTTS 音色串格式（2Noise/ChatTTS model/speaker.py）：
+#   embedding: float16(768) 二进制 -> LZMA(RAW, LZMA2 preset 9e) -> base16384
+#   spk_smp:   uint16 shape 头(4 字节) + uint16 token 数组 -> 同上压缩编码
+
+
+def _b14():
+    try:
+        import pybase16384
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "缺少 pybase16384 依赖；请在项目 .venv 中安装 requirements.txt 后重试。"
+        ) from exc
+    return pybase16384
+
+
+def emb_decode(payload: str) -> list[float]:
+    """把音色嵌入串还原成 768 个数值。"""
+    try:
+        raw = lzma.decompress(
+            _b14().decode_from_string(payload),
+            format=lzma.FORMAT_RAW,
+            filters=LZMA_RAW_FILTERS,
+        )
+        if len(raw) % 2:
+            raise ValueError("字节数不是 2 的倍数")
+        count = len(raw) // 2
+        values = list(struct.unpack(f"<{count}e", raw))
+    except (lzma.LZMAError, ValueError, struct.error) as exc:
+        raise RuntimeError(f"音色嵌入串无法解码：{exc}") from exc
+    return values
+
+
+def emb_encode(values: list[float]) -> str:
+    """数值列表 -> 音色嵌入串（与官方 sample_random_speaker 输出同格式）。"""
+    packed = struct.pack(f"<{len(values)}e", *[float(v) for v in values])
+    return _b14().encode_to_string(
+        lzma.compress(packed, format=lzma.FORMAT_RAW, filters=LZMA_RAW_FILTERS)
+    )
+
+
+def smp_decode(payload: str) -> tuple[list[int], list[int]]:
+    """解码音频提示串（spk_smp）：返回 (shape, uint16 数值)。"""
+    try:
+        raw = _b14().decode_from_string(payload)
+        shape = list(struct.unpack("<2H", raw[:4]))
+        body = lzma.decompress(raw[4:], format=lzma.FORMAT_RAW, filters=LZMA_RAW_FILTERS)
+        if len(body) % 2:
+            raise ValueError("字节数不是 2 的倍数")
+        values = list(struct.unpack(f"<{len(body) // 2}H", body))
+    except (lzma.LZMAError, ValueError, struct.error) as exc:
+        raise RuntimeError(f"音频提示串无法解码：{exc}") from exc
+    return shape, values
+
+
+def smp_encode(shape: list[int], values: list[int]) -> str:
+    head = struct.pack("<2H", int(shape[0]) & 0xFFFF, int(shape[1]) & 0xFFFF)
+    body = struct.pack(f"<{len(values)}H", *[int(v) & 0xFFFF for v in values])
+    return _b14().encode_to_string(
+        head + lzma.compress(body, format=lzma.FORMAT_RAW, filters=LZMA_RAW_FILTERS)
+    )
+
+
+def _now_text() -> str:
+    return dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _new_custom_id() -> str:
+    return f"custom_{dt.datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+
+def _valid_custom(record: object) -> bool:
+    return (
+        isinstance(record, dict)
+        and bool(record.get("id"))
+        and bool(record.get("name"))
+        and record.get("type") in ("emb", "smp")
+        and bool(record.get("embedding") or record.get("spk_smp"))
+    )
+
+
+def _read_custom_file() -> list[dict[str, object]]:
+    if not CUSTOM_FILE.exists():
+        return []
+    try:
+        payload = json.loads(CUSTOM_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    voices = payload.get("voices", [])
+    if not isinstance(voices, list):
+        return []
+    return [dict(item) for item in voices if _valid_custom(item)]
+
+
+def custom_voices_meta() -> list[dict[str, object]]:
+    with _custom_lock:
+        voices = _read_custom_file()
+    return [
+        {
+            "id": item["id"],
+            "name": item["name"],
+            "type": item["type"],
+            "source": item.get("source", ""),
+            "created": item.get("created", ""),
+        }
+        for item in voices
+    ]
+
+
+def custom_voice_by_id(voice_id: str) -> dict[str, object] | None:
+    with _custom_lock:
+        for item in _read_custom_file():
+            if str(item["id"]) == voice_id:
+                return item
+    return None
+
+
+def add_custom_voice(record: dict[str, object]) -> dict[str, object]:
+    with _custom_lock:
+        voices = _read_custom_file()
+        voices.append(record)
+        CUSTOM_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CUSTOM_FILE.write_text(
+            json.dumps({"format": 1, "voices": voices}, ensure_ascii=False, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
+    return record
+
+
+def mutate_custom_voice(voice_id: str, **fields: object) -> bool:
+    with _custom_lock:
+        voices = _read_custom_file()
+        found = False
+        for item in voices:
+            if str(item["id"]) == voice_id:
+                item.update({key: value for key, value in fields.items() if value is not None})
+                found = True
+                break
+        if not found:
+            return False
+        CUSTOM_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CUSTOM_FILE.write_text(
+            json.dumps({"format": 1, "voices": voices}, ensure_ascii=False, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
+        return True
+
+
+def delete_custom_voice(voice_id: str) -> bool:
+    with _custom_lock:
+        voices = _read_custom_file()
+        remaining = [item for item in voices if str(item["id"]) != voice_id]
+        if len(remaining) == len(voices):
+            return False
+        CUSTOM_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CUSTOM_FILE.write_text(
+            json.dumps({"format": 1, "voices": remaining}, ensure_ascii=False, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
+        return True
+
+
+def _read_fixed_embeddings() -> dict[str, str]:
+    if not SPEAKER_FILE.exists():
+        return {}
+    try:
+        payload = json.loads(SPEAKER_FILE.read_text(encoding="utf-8"))
+        speakers = payload.get("speakers", [])
+    except (OSError, ValueError, AttributeError):
+        return {}
+    if not isinstance(speakers, list):
+        return {}
+    return {
+        str(item.get("id")): str(item.get("embedding"))
+        for item in speakers
+        if isinstance(item, dict) and item.get("id") and item.get("embedding")
+    }
+
+
+def fixed_embedding(voice_id: str) -> str:
+    table = _read_fixed_embeddings()
+    if voice_id not in table:
+        raise RuntimeError(
+            "固定音色数据尚未初始化；请先在“设计台”页面完成一次生成，或重启服务后再试。"
+        )
+    return table[voice_id]
+
+
+def resolve_speaker(voice: object) -> tuple[dict[str, str | None], str]:
+    """把前端音色描述解析成 ChatTTS 推理所需的 (参数, 标签)。"""
+    if not isinstance(voice, dict):
+        raise RuntimeError("音色参数格式错误。")
+    kind = str(voice.get("kind", ""))
+    if kind == "fixed":
+        voice_id = str(voice.get("id", ""))
+        return {"spk_emb": fixed_embedding(voice_id), "spk_smp": None, "txt_smp": None}, voice_id
+    if kind == "custom":
+        record = custom_voice_by_id(str(voice.get("id", "")))
+        if record is None:
+            raise RuntimeError("找不到该自定义音色，可能已被删除。")
+        if record["type"] == "smp":
+            return (
+                {
+                    "spk_emb": None,
+                    "spk_smp": str(record.get("spk_smp", "")),
+                    "txt_smp": str(record.get("txt_smp", "")),
+                },
+                str(record["id"]),
+            )
+        return {"spk_emb": str(record.get("embedding", "")), "spk_smp": None, "txt_smp": None}, str(record["id"])
+    if kind == "vector":
+        values = voice.get("vector")
+        if not isinstance(values, list) or len(values) != EMBED_DIM:
+            raise RuntimeError(f"编辑器数值必须是 {EMBED_DIM} 个。")
+        checked: list[float] = []
+        for item in values:
+            try:
+                number = float(item)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("编辑器数值中包含非数字。") from exc
+            if not math.isfinite(number):
+                raise RuntimeError("编辑器数值中包含无穷或 NaN。")
+            checked.append(max(-1000.0, min(1000.0, number)))
+        return {"spk_emb": emb_encode(checked), "spk_smp": None, "txt_smp": None}, "editor"
+    if kind == "emb_string":
+        payload = str(voice.get("string", ""))
+        values = emb_decode(payload)
+        if len(values) != EMBED_DIM:
+            raise RuntimeError(f"嵌入串维度为 {len(values)}，应为 {EMBED_DIM}，无法使用。")
+        return {"spk_emb": payload, "spk_smp": None, "txt_smp": None}, "imported"
+    if kind == "smp_string":
+        payload = str(voice.get("string", ""))
+        smp_decode(payload)
+        return (
+            {"spk_emb": None, "spk_smp": payload, "txt_smp": str(voice.get("text", ""))},
+            "imported",
+        )
+    raise RuntimeError("未知音色类型。")
 
 
 def clamp(value: object, low: float, high: float, default: float) -> float:
@@ -199,10 +455,9 @@ class ChatTTSEngine:
             )
         self._speakers = {card["id"]: by_id[card["id"]] for card in VOICE_CARDS}
 
-    def synthesize(self, text: str, voice_id: str, rate: int):
+    def synthesize(self, text: str, rate: int, voice: object):
         self._load()
-        if voice_id not in self._speakers:
-            raise RuntimeError("请选择列表中的普通话音色。")
+        speaker, label = resolve_speaker(voice)
 
         # ChatTTS has shared model state. Serialize inference to avoid concurrent
         # requests corrupting its random-generator or decoder state.
@@ -210,10 +465,12 @@ class ChatTTSEngine:
             assert self._chat is not None and self._chattts is not None
             assert self._numpy is not None
             speed = int(clamp(rate, 1, 9, 5))
-            seed_text = f"{voice_id}\0{text}\0{rate}".encode("utf-8")
+            seed_text = f"{label}\0{text}\0{rate}".encode("utf-8")
             seed = int(hashlib.sha256(seed_text).hexdigest()[:8], 16)
             infer_params = self._chattts.Chat.InferCodeParams(
-                spk_emb=self._speakers[voice_id],
+                spk_emb=speaker["spk_emb"],
+                spk_smp=speaker["spk_smp"],
+                txt_smp=speaker["txt_smp"] or None,
                 prompt=f"[speed_{speed}]",
                 manual_seed=seed,
                 temperature=0.3,
@@ -221,13 +478,19 @@ class ChatTTSEngine:
                 top_K=20,
                 show_tqdm=False,
             )
-            audio_list = self._chat.infer(
-                text,
-                params_infer_code=infer_params,
-                lang="zh",
-                do_text_normalization=True,
-                do_homophone_replacement=True,
-            )
+            try:
+                audio_list = self._chat.infer(
+                    text,
+                    params_infer_code=infer_params,
+                    lang="zh",
+                    do_text_normalization=True,
+                    do_homophone_replacement=True,
+                )
+            except ValueError as exc:
+                # ChatTTS 在“音频提示音色 + 极短文本”时可能一段音频都生成不了
+                raise RuntimeError(
+                    "ChatTTS 没能生成音频；使用提取音色时请换一段更长的文本（建议 10 字以上）重试。"
+                ) from exc
             if not audio_list:
                 raise RuntimeError("ChatTTS 没有返回音频，请缩短文本后重试。")
             samples = self._numpy.asarray(audio_list[0], dtype=self._numpy.float32).reshape(-1)
@@ -248,6 +511,11 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     if not text:
         raise RuntimeError("请输入要朗读的中文文本。")
     voice_id = str(params.get("base_voice", "speaker_001"))
+    base_voice = (
+        {"kind": "custom", "id": voice_id}
+        if voice_id.startswith("custom_")
+        else {"kind": "fixed", "id": voice_id}
+    )
     rate = int(clamp(params.get("rate"), 1, 9, 5))
     pitch = clamp(params.get("pitch"), -8, 8, 0)
     pitch_variation = clamp(params.get("pitch_variation"), 0, 100, 0)
@@ -300,7 +568,7 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     saved_path = OUTPUT_DIR / filename
     with tempfile.TemporaryDirectory(prefix="voice-design-server-") as temp:
         source_path, render_path = Path(temp) / "source.wav", Path(temp) / "render.wav"
-        pcm, sample_rate = ENGINE.synthesize(text, voice_id, rate)
+        pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice)
         with wave.open(str(source_path), "wb") as source_file:
             source_file.setnchannels(1)
             source_file.setsampwidth(2)
@@ -328,6 +596,302 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     return data, saved_path
 
 
+def wrap_wav(pcm: bytes, sample_rate: int) -> bytes:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(pcm)
+    return buffer.getvalue()
+
+
+def preview_audio(payload: dict[str, object]) -> bytes:
+    """用指定音色（固定/自定义/编辑器向量）直接合成试听音频，不经 ffmpeg。"""
+    default_text = "你好，这是当前音色的试听。"
+    text = str(payload.get("text", default_text)).strip()[:600]
+    if not text:
+        text = default_text
+    rate = int(clamp(payload.get("rate"), 1, 9, 5))
+    voice = payload.get("voice")
+    pcm, sample_rate = ENGINE.synthesize(text, rate, voice)
+    return wrap_wav(pcm, sample_rate)
+
+
+def speaker_detail(voice_id: str, kind: str) -> dict[str, object]:
+    """返回音色的数值数据：emb 为 768 个数值；smp 为分层 token。"""
+    if kind == "custom":
+        record = custom_voice_by_id(voice_id)
+        if record is None:
+            raise RuntimeError("找不到该自定义音色，可能已被删除。")
+        if record["type"] == "smp":
+            shape, values = smp_decode(str(record.get("spk_smp", "")))
+            frames = shape[-1] if len(shape) >= 2 else len(values) // max(1, shape[0])
+            layers = shape[0] if shape else 1
+            rows = [
+                values[i * frames : (i + 1) * frames] if frames > 0 else []
+                for i in range(layers)
+            ]
+            return {
+                "id": record["id"],
+                "kind": "custom",
+                "name": record["name"],
+                "type": "smp",
+                "shape": shape,
+                "layers": layers,
+                "frames": frames,
+                "rows": rows,
+                "txt_smp": str(record.get("txt_smp", "")),
+                "created": record.get("created", ""),
+            }
+        vector = emb_decode(str(record.get("embedding", "")))
+        return {
+            "id": record["id"],
+            "kind": "custom",
+            "name": record["name"],
+            "type": "emb",
+            "dim": len(vector),
+            "vector": vector,
+            "raw": str(record.get("embedding", "")),
+            "created": record.get("created", ""),
+        }
+
+    embedding = fixed_embedding(voice_id)
+    vector = emb_decode(embedding)
+    return {
+        "id": voice_id,
+        "kind": "fixed",
+        "name": FIXED_NAMES.get(voice_id, voice_id),
+        "type": "emb",
+        "dim": len(vector),
+        "vector": vector,
+        "raw": embedding,
+    }
+
+
+def save_speaker(payload: dict[str, object]) -> dict[str, object]:
+    """把编辑器向量或导入的音色串保存为新的自定义音色。"""
+    name = str(payload.get("name", "")).strip()[:40]
+    mode = str(payload.get("mode", ""))
+    source = str(payload.get("source", "editor"))[:60]
+    record_id = _new_custom_id()
+    created = _now_text()
+    if mode == "vector":
+        if not name:
+            name = "编辑音色"
+        values = payload.get("vector")
+        if not isinstance(values, list) or len(values) != EMBED_DIM:
+            raise RuntimeError(f"编辑器数值必须是 {EMBED_DIM} 个。")
+        checked: list[float] = []
+        for item in values:
+            try:
+                number = float(item)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("编辑器数值中包含非数字。") from exc
+            if not math.isfinite(number):
+                raise RuntimeError("编辑器数值中包含无穷或 NaN。")
+            checked.append(max(-1000.0, min(1000.0, number)))
+        record = {
+            "id": record_id,
+            "name": name,
+            "type": "emb",
+            "embedding": emb_encode(checked),
+            "source": source,
+            "created": created,
+        }
+    elif mode == "string":
+        raw = str(payload.get("string", ""))
+        if not raw:
+            raise RuntimeError("请粘贴要导入的音色串。")
+        voice_type = str(payload.get("voice_type", "emb"))
+        if voice_type == "smp":
+            shape, _values = smp_decode(raw)
+            if not shape or len(shape) < 2 or shape[0] < 1 or shape[1] < 1:
+                raise RuntimeError("音频提示串的形状信息不合法。")
+            record = {
+                "id": record_id,
+                "name": name or "导入提取音色",
+                "type": "smp",
+                "spk_smp": raw,
+                "txt_smp": str(payload.get("text", "")).strip()[:2000],
+                "source": "import",
+                "created": created,
+            }
+        else:
+            values = emb_decode(raw)
+            if len(values) != EMBED_DIM:
+                raise RuntimeError(f"嵌入串维度为 {len(values)}，应为 {EMBED_DIM}，无法导入。")
+            record = {
+                "id": record_id,
+                "name": name or "导入音色",
+                "type": "emb",
+                "embedding": raw,
+                "source": "import",
+                "created": created,
+            }
+    else:
+        raise RuntimeError("未知的保存方式。")
+    add_custom_voice(record)
+    return {
+        "voice": {
+            "id": record["id"],
+            "name": record["name"],
+            "type": record["type"],
+            "created": created,
+        }
+    }
+
+
+def update_speaker(payload: dict[str, object]) -> dict[str, object]:
+    voice_id = str(payload.get("id", ""))
+    record = custom_voice_by_id(voice_id)
+    if record is None:
+        raise RuntimeError("找不到该自定义音色。")
+    fields: dict[str, object] = {}
+    if "name" in payload:
+        name = str(payload.get("name", "")).strip()[:40]
+        if not name:
+            raise RuntimeError("音色名称不能为空。")
+        fields["name"] = name
+    if "txt_smp" in payload and record["type"] == "smp":
+        fields["txt_smp"] = str(payload.get("txt_smp", "")).strip()[:2000]
+    if not fields:
+        raise RuntimeError("没有需要修改的内容。")
+    if not mutate_custom_voice(voice_id, **fields):
+        raise RuntimeError("保存修改失败。")
+    return {"ok": True}
+
+
+def delete_speaker(payload: dict[str, object]) -> dict[str, object]:
+    voice_id = str(payload.get("id", ""))
+    if not voice_id.startswith("custom_"):
+        raise RuntimeError("只能删除自定义音色；60 个固定音色不可删除。")
+    if not delete_custom_voice(voice_id):
+        raise RuntimeError("找不到该自定义音色。")
+    return {"ok": True}
+
+
+def load_wav_mono(path: Path) -> "tuple[object, int]":
+    """读 WAV 为 mono float32 波形。优先标准库（PCM），失败回退 ffmpeg（支持浮点/非 PCM）。"""
+    np = ENGINE._numpy
+    assert np is not None
+    try:
+        with wave.open(str(path), "rb") as wav_file:
+            channels = wav_file.getnchannels()
+            width = wav_file.getsampwidth()
+            rate = wav_file.getframerate()
+            if channels < 1 or width not in (1, 2, 3, 4) or rate < 4000:
+                raise ValueError("unsupported wav layout")
+            frames = wav_file.readframes(wav_file.getnframes())
+        block = channels * width
+        count = len(frames) // block
+        frames = frames[: count * block]
+        if width == 1:
+            pcm = np.frombuffer(frames, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        elif width == 2:
+            pcm = np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+        elif width == 3:
+            raw = np.frombuffer(frames, dtype=np.uint8).reshape(-1, 3)
+            values = (
+                raw[:, 0].astype(np.int32)
+                | (raw[:, 1].astype(np.int32) << 8)
+                | (raw[:, 2].astype(np.int32) << 16)
+            )
+            values = np.where(values & 0x800000, values - 0x1000000, values)
+            pcm = values.astype(np.float32) / 8388608.0
+        else:
+            pcm = np.frombuffer(frames, dtype="<i4").astype(np.float32) / 2147483648.0
+        if channels > 1:
+            pcm = pcm.reshape(-1, channels).mean(axis=1)
+        return pcm.reshape(-1), int(rate)
+    except wave.Error:
+        pass  # 非 PCM WAV，走 ffmpeg
+    raw_path = path.with_suffix(".raw")
+    run([
+        "ffmpeg", "-y", "-i", str(path), "-ac", "1",
+        "-ar", str(SAMPLE_RATE), "-f", "s16le", str(raw_path),
+    ])
+    pcm = np.frombuffer(raw_path.read_bytes(), dtype="<i2").astype(np.float32) / 32768.0
+    return pcm.reshape(-1), SAMPLE_RATE
+
+
+def extract_speaker(wav_bytes: bytes, name: str, text: str) -> dict[str, object]:
+    """从上传的 WAV 中提取音频提示（spk_smp）并保存为自定义音色。"""
+    if not wav_bytes:
+        raise RuntimeError("没有收到音频数据。")
+    if len(wav_bytes) > MAX_UPLOAD_BYTES:
+        raise RuntimeError("音频文件过大（超过 40MB）。")
+    ENGINE._load()
+    chat = ENGINE._chat
+    np = ENGINE._numpy
+    torch = ENGINE._torch
+    assert chat is not None and np is not None and torch is not None
+
+    with tempfile.TemporaryDirectory(prefix="voice-extract-") as temp:
+        path = Path(temp) / "upload.wav"
+        path.write_bytes(wav_bytes)
+        try:
+            wav, sr = load_wav_mono(path)
+        except Exception as exc:
+            raise RuntimeError(
+                f"无法读取该音频（建议上传 16bit PCM 的 WAV，或安装 ffmpeg 后重试）：{exc}"
+            ) from exc
+        if sr != SAMPLE_RATE:
+            waveform = torch.from_numpy(np.ascontiguousarray(wav)).to(dtype=torch.float32)
+            try:
+                import torchaudio.functional as ta_f
+
+                waveform = ta_f.resample(waveform, sr, SAMPLE_RATE)
+            except Exception:
+                scale = SAMPLE_RATE / sr
+                size = max(1, int(waveform.numel() * scale))
+                waveform = torch.nn.functional.interpolate(
+                    waveform.view(1, 1, -1), size=size, mode="linear", align_corners=False
+                ).view(-1)
+            wav = waveform.cpu().numpy().astype(np.float32)
+
+    if wav.size < SAMPLE_RATE // 2:
+        raise RuntimeError("音频太短（不足 0.5 秒），请上传更长的语音。")
+    gate = max(1e-4, float(np.abs(wav).max()) * 0.02)
+    nonzero = np.nonzero(np.abs(wav) > gate)[0]
+    if nonzero.size == 0:
+        raise RuntimeError("音频几乎全是静音，无法提取音色。")
+    margin = int(SAMPLE_RATE * 0.15)
+    start = max(0, int(nonzero[0]) - margin)
+    end = min(wav.size, int(nonzero[-1]) + margin)
+    wav = wav[start:end]
+    max_len = SAMPLE_RATE * MAX_PROMPT_SECONDS
+    if wav.size > max_len:
+        wav = wav[:max_len]
+    seconds = wav.size / SAMPLE_RATE
+
+    with ENGINE._infer_lock:
+        spk_smp = chat.sample_audio_speaker(wav)
+    shape, _values = smp_decode(spk_smp)
+
+    record = {
+        "id": _new_custom_id(),
+        "name": name or "提取音色",
+        "type": "smp",
+        "spk_smp": spk_smp,
+        "txt_smp": text,
+        "source": "wav",
+        "created": _now_text(),
+    }
+    add_custom_voice(record)
+    return {
+        "voice": {
+            "id": record["id"],
+            "name": record["name"],
+            "type": "smp",
+            "created": record["created"],
+        },
+        "seconds": round(seconds, 2),
+        "layers": shape[0] if shape else 0,
+        "frames": shape[-1] if len(shape) >= 2 else len(_values),
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "VoiceDesign/2.0"
 
@@ -339,6 +903,24 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_wav(self, audio: bytes, filename: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/wav")
+        self.send_header("Content-Disposition", f"inline; filename={filename}")
+        self.send_header("Content-Length", str(len(audio)))
+        self.end_headers()
+        self.wfile.write(audio)
+
+    def _read_json_body(self) -> dict[str, object]:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length > MAX_UPLOAD_BYTES:
+            raise RuntimeError("请求体过大。")
+        raw = self.rfile.read(length).decode("utf-8")
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise RuntimeError("请求体必须是 JSON 对象。")
+        return payload
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         if parsed.path in ("/", "/index.html"):
@@ -349,8 +931,39 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if parsed.path == "/lab":
+            if not LAB_FILE.exists():
+                self.send_error(404)
+                return
+            data = LAB_FILE.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if parsed.path == "/api/voices":
-            self._send_json(200, {"voices": VOICE_CARDS, "engine": ENGINE.status()})
+            self._send_json(
+                200,
+                {
+                    "voices": VOICE_CARDS,
+                    "custom": custom_voices_meta(),
+                    "engine": ENGINE.status(),
+                },
+            )
+            return
+        if parsed.path == "/api/speaker/detail":
+            try:
+                query = parse_qs(parsed.query)
+                voice_id = (query.get("id") or [""])[0]
+                kind = (query.get("kind") or ["fixed"])[0]
+                if not voice_id:
+                    raise RuntimeError("缺少音色 id 参数。")
+                if kind not in ("fixed", "custom"):
+                    raise RuntimeError("kind 参数必须是 fixed 或 custom。")
+                self._send_json(200, speaker_detail(voice_id, kind))
+            except Exception as exc:
+                self._send_json(400, {"error": str(exc) or "读取音色数据失败。"})
             return
         if parsed.path.startswith("/outputs/"):
             name = Path(unquote(parsed.path).replace("/outputs/", "", 1)).name
@@ -366,26 +979,55 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/api/render":
-            self.send_error(404)
-            return
+        route = urlparse(self.path).path
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            params = json.loads(self.rfile.read(length).decode("utf-8"))
-            audio, saved_path = render_audio(params)
-            relative = saved_path.relative_to(ROOT).as_posix()
-            self.send_response(200)
-            self.send_header("Content-Type", "audio/wav")
-            self.send_header("Content-Disposition", f"inline; filename={saved_path.name}")
-            self.send_header("X-Voice-File", relative)
-            self.send_header("Access-Control-Expose-Headers", "X-Voice-File")
-            self.send_header("Content-Length", str(len(audio)))
-            self.end_headers()
-            self.wfile.write(audio)
+            if route == "/api/render":
+                length = int(self.headers.get("Content-Length", "0"))
+                params = json.loads(self.rfile.read(length).decode("utf-8"))
+                audio, saved_path = render_audio(params)
+                relative = saved_path.relative_to(ROOT).as_posix()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/wav")
+                self.send_header("Content-Disposition", f"inline; filename={saved_path.name}")
+                self.send_header("X-Voice-File", relative)
+                self.send_header("Access-Control-Expose-Headers", "X-Voice-File")
+                self.send_header("Content-Length", str(len(audio)))
+                self.end_headers()
+                self.wfile.write(audio)
+                return
+            if route == "/api/preview":
+                payload = self._read_json_body()
+                audio = preview_audio(payload)
+                self._send_wav(audio, "preview.wav")
+                return
+            if route == "/api/speaker/save":
+                payload = self._read_json_body()
+                self._send_json(200, save_speaker(payload))
+                return
+            if route == "/api/speaker/update":
+                payload = self._read_json_body()
+                self._send_json(200, update_speaker(payload))
+                return
+            if route == "/api/speaker/delete":
+                payload = self._read_json_body()
+                self._send_json(200, delete_speaker(payload))
+                return
+            if route == "/api/speaker/extract":
+                parsed = urlparse(self.path)
+                query = parse_qs(parsed.query)
+                name = unquote((query.get("name") or [""])[0]).strip()[:40]
+                text = unquote((query.get("text") or [""])[0]).strip()[:2000]
+                length = int(self.headers.get("Content-Length", "0"))
+                if length > MAX_UPLOAD_BYTES:
+                    raise RuntimeError("音频文件过大（超过 40MB）。")
+                wav_bytes = self.rfile.read(length)
+                self._send_json(200, extract_speaker(wav_bytes, name, text))
+                return
+            self.send_error(404)
         except Exception as exc:  # pragma: no cover
-            print(f"Render request failed: {exc}", flush=True)
+            print(f"Request failed ({self.path}): {exc}", flush=True)
             traceback.print_exc()
-            self._send_json(500, {"error": str(exc) or "声音生成失败，请查看服务窗口日志。"})
+            self._send_json(500, {"error": str(exc) or "请求处理失败，请查看服务窗口日志。"})
 
     def log_message(self, format: str, *args: object) -> None:
         print(format % args)
@@ -400,6 +1042,7 @@ def main() -> None:
         raise SystemExit(f"找不到 {UI_FILE}")
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"声音设计台：http://{args.host}:{args.port}")
+    print(f"音色实验室：http://{args.host}:{args.port}/lab")
     print(f"普通话固定音色：{VOICE_COUNT} 个；首次生成时自动下载并初始化模型。")
     try:
         server.serve_forever()

@@ -16,7 +16,7 @@
 </head>
 <body><main>
 <h1>中文多维声音设计台 <span class="small" id="app_version"></span></h1>
-<p>从 60 个可重复选择的普通话声线开始设计。第一次生成会下载并加载本地模型；完成后的 WAV 保存在项目的 <code>outputs/</code> 文件夹。</p>
+<p>从 60 个可重复选择的普通话声线开始设计。第一次生成会下载并加载本地模型；完成后的 WAV 保存在项目的 <code>outputs/</code> 文件夹。<a href="/lab">前往音色实验室（编辑音色 / WAV 提取）→</a></p>
 <div class="grid">
 <section class="panel">
 <div class="top-actions"><button class="primary" id="render">生成并试听</button><button id="randomize">随机探索</button><button id="reset">恢复默认</button></div>
@@ -34,7 +34,7 @@
 <div class="section"><h2>当前参数</h2><div class="chips" id="chips"></div></div>
 </section></div></main>
 <script>
-const APP_VERSION='v1.0.261101-11';
+const APP_VERSION='v1.1.261101-13';
 document.getElementById('app_version').textContent=APP_VERSION;
 const ids=['pitch','pitch_variation','rate','volume','brightness','warmth','body','nasality','tension','clarity','presence','air','sibilance','breathiness','roughness','smoothness','compression','distance','room'];
 const labels={pitch:'音高',pitch_variation:'音高起伏',rate:'语速',volume:'音量',brightness:'明亮度',warmth:'温暖度',body:'厚度',nasality:'鼻音',tension:'声带张力',clarity:'清晰度',presence:'存在感',air:'空气感',sibilance:'齿音',breathiness:'气声',roughness:'粗糙度',smoothness:'平滑度',compression:'压缩',distance:'距离感',room:'房间感'};
@@ -60,7 +60,7 @@ async function render(){const btn=$('render');btn.disabled=true;const originalTe
 function download(){if(!currentBlob)return;const a=document.createElement('a');a.href=currentUrl;a.download='voice-design.wav';a.click()}
 function presetNames(){return Object.keys(localStorage).filter(k=>k.startsWith('voice-design:')).sort()}function refreshPresets(){const select=$('preset_select');select.replaceChildren(new Option('选择已保存预设',''));for(const key of presetNames())select.add(new Option(key.slice(13),key))}
 async function loadHistory(){historyRecords=(await dbGetAll()).sort((a,b)=>b.created-a.created);renderHistory()}
-async function initialize(){try{const response=await fetch('/api/voices');if(!response.ok)throw new Error('读取普通话音色列表失败');const data=await response.json();const select=$('base_voice');select.replaceChildren();for(const voice of data.voices){voiceNames[voice.id]=voice.name;select.add(new Option(voice.name,voice.id))}if(data.engine?.state==='未安装 ChatTTS')$('engine_status').textContent='当前 Python 环境缺少 ChatTTS；Windows 请双击 start.bat 自动安装，macOS 安装步骤见 README。';else if(data.engine?.state)$('engine_status').textContent=`模型状态：${data.engine.state}；首次生成将自动下载模型。`;setParams(defaults);refreshPresets();await loadHistory()}catch(e){$('status').textContent=`初始化失败：${e.message}`}}
+async function initialize(){try{const response=await fetch('/api/voices');if(!response.ok)throw new Error('读取普通话音色列表失败');const data=await response.json();const select=$('base_voice');select.replaceChildren();for(const voice of data.voices){voiceNames[voice.id]=voice.name;select.add(new Option(voice.name,voice.id))}const customs=data.custom||[];for(const voice of customs){const label=`${voice.name}${voice.type==='smp'?'（提取）':''}`;voiceNames[voice.id]=label;select.add(new Option(label,voice.id))}if(customs.length)$('engine_status').textContent=`已加载 ${customs.length} 个自定义音色（来自音色实验室）；可在下拉列表底部选择。`;if(data.engine?.state==='未安装 ChatTTS')$('engine_status').textContent='当前 Python 环境缺少 ChatTTS；Windows 请双击 start.bat 自动安装，macOS 安装步骤见 README。';else if(data.engine?.state&&!customs.length)$('engine_status').textContent=`模型状态：${data.engine.state}；首次生成将自动下载模型。`;setParams(defaults);refreshPresets();await loadHistory()}catch(e){$('status').textContent=`初始化失败：${e.message}`}}
 for(const id of ids)$(id).addEventListener('input',refresh);$('render').onclick=render;$('download').onclick=download;$('reset').onclick=()=>setParams(defaults);$('randomize').onclick=()=>{for(const id of ids){const el=$(id);if(id==='rate')continue;const span=Number(el.max)-Number(el.min);el.value=(Number(el.min)+Math.random()*span).toFixed(el.step<1?1:0)}const voices=$('base_voice').options;$('base_voice').selectedIndex=Math.floor(Math.random()*voices.length);refresh()};$('base_voice').addEventListener('change',refresh);$('save').onclick=()=>{const name=prompt('预设名称');if(!name||!name.trim())return;localStorage.setItem('voice-design:'+name.trim(),JSON.stringify(params()));refreshPresets();$('preset_select').value='voice-design:'+name.trim();$('status').textContent=`预设“${name.trim()}”已保存。`};$('load').onclick=()=>{const key=$('preset_select').value;if(key){setParams(JSON.parse(localStorage.getItem(key)));$('status').textContent='预设已加载，可以点击生成并试听。'}};$('history_filter').onchange=renderHistory;$('clear_history').onclick=async()=>{if(!confirm('删除全部未收藏记录？'))return;for(const r of historyRecords.filter(x=>!x.favorite))await dbDelete(r.id);historyRecords=historyRecords.filter(x=>x.favorite);if(compareA&&!historyRecords.some(r=>r.id===compareA))compareA=null;if(compareB&&!historyRecords.some(r=>r.id===compareB))compareB=null;renderHistory()};$('clear_all_history').onclick=async()=>{if(!confirm('清空全部历史记录？'))return;await dbClear();historyRecords=[];compareA=null;compareB=null;renderHistory()};$('use_a').onclick=()=>{const r=historyRecords.find(x=>x.id===compareA);if(r)useRecord(r)};$('use_b').onclick=()=>{const r=historyRecords.find(x=>x.id===compareB);if(r)useRecord(r)};initialize();
 </script>
 </body>

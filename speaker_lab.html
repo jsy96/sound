@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>音色实验室</title>
+<style>
+:root{color-scheme:light;--bg:#fff7ec;--panel:#fffdf8;--line:#ead7c3;--text:#4a3425;--muted:#8c7562;--accent:#c56a3c;--accent-dark:#a9502c;--green:#587c5d;--green-dark:#426747;--shadow:0 8px 24px rgba(112,73,35,.08);--grid:#f1e5d4;--baseline:#d9c4a9;--series1:#2a78d6;--series2:#eb6834;--series3:#1baf7a;--series4:#eda100;--crosshair:#b8a288}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}main{width:min(1280px,calc(100% - 32px));margin:22px auto 60px}h1{margin:0;font-size:28px}h2{margin:0 0 10px;font-size:17px}p{margin:4px 0 16px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(320px,.72fr) minmax(520px,1.5fr);gap:18px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.section:first-child{border-top:0;padding-top:0;margin-top:0}
+button,select,input,textarea{font:inherit}button{border:1px solid #d9b99b;border-radius:9px;padding:8px 12px;color:var(--text);background:#fff7ec;cursor:pointer}button:hover{background:#f9eadb}button.primary{background:var(--accent);border-color:var(--accent-dark);color:#fff}button.primary:hover{background:var(--accent-dark)}button.good{background:var(--green);border-color:var(--green-dark);color:#fff}button:disabled{opacity:.5;cursor:wait}select,input[type=text],input[type=number],textarea{width:100%;background:#fffaf3;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 10px}textarea{min-height:76px;resize:vertical}label{display:block;margin:10px 0 5px}
+.small{font-size:12px;color:var(--muted)}.hint{background:#fff2df;border:1px solid #f0d7b5;border-radius:10px;padding:10px 12px;color:#795f4b}.status{min-height:24px;color:var(--muted);background:#fff7ec;border-radius:8px;padding:7px 9px;margin:8px 0}.badge{font-size:11px;border-radius:999px;padding:2px 8px;background:#f0ded0;color:var(--accent-dark);margin-left:6px;vertical-align:2px}.badge.blue{background:#dfeafa;color:#1c5cab}.badge.green{background:#dfeee2;color:#426747}
+.library{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fffaf3}.lib-group{padding:6px 0}.lib-title{font-weight:650;font-size:13px;color:var(--muted);padding:7px 12px 3px}.lib-row{display:flex;align-items:center;gap:6px;width:100%;text-align:left;border:0;border-radius:0;background:transparent;padding:7px 12px;cursor:pointer}.lib-row:hover{background:#f6e9da}.lib-row.active{background:#f2dfcb;font-weight:650}.lib-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lib-row .mini{font-size:12px;padding:4px 7px;border-radius:7px}
+.lib-empty{padding:14px 12px;color:var(--muted);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:12px 0}.tile{border:1px solid var(--line);border-radius:12px;background:#fffaf3;padding:10px 12px}.tile .t-label{font-size:12px;color:var(--muted)}.tile .t-value{font-size:21px;font-weight:600;margin-top:2px}
+.chart-card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 12px 8px}.chart-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}.chart-title{font-weight:650;font-size:14px}.legend{display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12px;color:var(--muted)}.legend .key{display:inline-block;width:14px;height:0;border-top:2px solid;border-radius:2px;margin-right:5px;vertical-align:3px}
+.chart-wrap{position:relative}.chart-wrap canvas{display:block;width:100%;height:320px;touch-action:none;cursor:crosshair}.tooltip{position:absolute;pointer-events:none;background:#fffdf8;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:8px 10px;font-size:13px;display:none;min-width:130px;z-index:5}.tooltip .tt-x{color:var(--muted);font-size:12px;margin-bottom:4px}.tooltip .tt-row{display:flex;align-items:center;gap:7px}.tooltip .tt-key{display:inline-block;width:12px;height:0;border-top:2px solid;border-radius:2px}.tooltip .tt-val{font-weight:650;font-variant-numeric:tabular-nums}.tooltip .tt-name{color:var(--muted);margin-left:auto}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.toolbar input[type=number]{width:84px}.toolbar .field{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted)}
+table.values{width:100%;border-collapse:collapse;font-size:13px}.table-box{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px;background:#fffaf3}table.values td,table.values th{border-bottom:1px solid var(--grid);padding:4px 10px;text-align:right}table.values th{position:sticky;top:0;background:#fffaf3;color:var(--muted);font-weight:600}table.values td.idx{color:var(--muted);font-variant-numeric:tabular-nums;width:70px}table.values input{width:100%;padding:3px 8px;border-radius:7px}
+audio{width:100%;margin:8px 0 12px}.file-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.nav{margin-top:6px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<h1>音色实验室 <span class="small" id="app_version"></span></h1>
+<p>查看与编辑 ChatTTS 音色的 768 维嵌入向量，另存为新音色；或上传 WAV 语音提取音色。提取与试听首次使用时会下载并加载本地模型。<a href="/">前往设计台 →</a></p>
+<div class="grid">
+<section class="panel">
+<div class="section"><h2>音色库</h2><div id="library" class="library"><div class="lib-empty">正在加载…</div></div></div>
+<div class="section"><h2>从音色串导入</h2>
+<div class="hint">粘贴别人分享的 ChatTTS 音色串（一串“乱码汉字”），导入后即可编辑、试听。嵌入串选“嵌入向量”，从本页导出的提取音色选“音频提示”。</div>
+<label>音色串<textarea id="imp_string" placeholder="粘贴以汉字形式呈现的音色串"></textarea></label>
+<div class="file-line"><label style="flex:1;margin:0">名称<input type="text" id="imp_name" placeholder="导入音色的名称"></label><label style="width:130px;margin:0">类型<select id="imp_type"><option value="emb">嵌入向量</option><option value="smp">音频提示</option></select></label></div>
+<label id="imp_text_row" style="display:none">参考文本（音频提示里说的话）<input type="text" id="imp_text" placeholder="可选"></label>
+<div class="toolbar"><button class="primary" id="imp_btn">导入并保存</button></div><div class="status" id="imp_status"></div>
+</div>
+<div class="section"><h2>从 WAV 提取音色</h2>
+<div class="hint">上传一段 5~12 秒的干净人声 WAV（16bit PCM 效果最好）。提取出的音色按“音频提示”方式克隆原声，参考文本填写音频里说的内容可提升相似度。</div>
+<input type="file" id="wav_file" accept=".wav,audio/wav">
+<audio id="wav_preview" controls style="display:none"></audio><div class="small" id="wav_info"></div>
+<label>名称<input type="text" id="wav_name" placeholder="提取音色的名称"></label>
+<label>参考文本（音频里说的内容）<textarea id="wav_text" placeholder="例如：今天天气真好，我们一起去公园散步吧。"></textarea></label>
+<div class="toolbar"><button class="primary" id="wav_btn" disabled>提取并保存音色</button></div><div class="status" id="wav_status"></div>
+</div>
+</section>
+<section class="panel">
+<div class="section" id="editor_section">
+<div class="chart-head" style="margin-bottom:2px"><span class="chart-title" id="cur_name">未选择音色</span><span id="cur_badges"></span><span class="small" id="cur_dirty" style="display:none;color:var(--accent-dark)">已编辑</span></div>
+<div class="small" id="cur_meta">从左侧选择一个音色查看图形。</div>
+<div class="tiles" id="tiles"></div>
+<div class="chart-card">
+<div class="chart-head"><span class="chart-title" id="chart_title">音色嵌入向量</span><div class="legend" id="legend"></div></div>
+<div class="chart-wrap"><canvas id="chart"></canvas><div class="tooltip" id="tooltip"></div></div>
+<div class="small" id="chart_hint"></div>
+</div>
+<div id="emb_tools">
+<div class="toolbar"><span class="field">序号<input type="number" id="pt_idx" min="0" max="767" value="0"></span><span class="field">数值<input type="number" id="pt_val" step="0.001" value="0"></span><button id="pt_set">设置该点</button><button id="tbl_toggle">数值表</button></div>
+<div class="toolbar"><span class="field">缩放×<input type="number" id="op_scale" step="0.01" value="1.10"></span><button id="op_scale_btn">缩放</button><span class="field">偏移+<input type="number" id="op_shift" step="0.1" value="0.5"></span><button id="op_shift_btn">偏移</button><span class="field">平滑窗<input type="number" id="op_smooth" min="2" step="1" value="7"></span><button id="op_smooth_btn">平滑</button><span class="field">抖动幅<input type="number" id="op_jitter" step="0.05" value="0.30"></span><button id="op_jitter_btn">抖动</button></div>
+<div class="toolbar"><span class="field">归零区间<input type="number" id="op_zero_from" min="0" max="767" placeholder="从" style="width:70px">~<input type="number" id="op_zero_to" min="0" max="767" placeholder="到" style="width:70px"></span><button id="op_zero_btn">区间归零</button><button id="op_undo">撤销</button><button id="op_redo">重做</button><button id="op_reset">还原</button></div>
+<div class="table-box" id="table_box" style="display:none"></div>
+</div>
+<div class="toolbar"><label style="flex:1;margin:0">另存名称<input type="text" id="save_name" placeholder="新音色的名称"></label><button class="good" id="save_btn">另存为新音色</button><button id="export_btn">导出音色串</button></div>
+<div id="smp_tools" style="display:none">
+<label>参考文本（重新填写可提升克隆相似度）<textarea id="smp_text"></textarea></label>
+<div class="toolbar"><button id="smp_save_text">保存参考文本</button><button id="smp_tbl_toggle">数值表</button></div>
+<div class="table-box" id="smp_table_box" style="display:none"></div>
+</div>
+<div class="section"><h2>试听</h2>
+<label>试听文本<textarea id="aud_text">你好，这是当前音色的试听，请听听看效果怎么样。</textarea></label>
+<div class="toolbar"><span class="field">语速<select id="aud_rate"><option value="1">1 最慢</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 适中</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9 最快</option></select></span><button class="primary" id="aud_btn">生成试听</button></div>
+<div class="status" id="aud_status">尚未试听。</div><audio id="aud_audio" controls></audio>
+</div>
+</div>
+</section></div></main>
+<script>
+const APP_VERSION='v1.1.261101-13';
+document.getElementById('app_version').textContent=APP_VERSION;
+const $=id=>document.getElementById(id);
+const SERIES=['--series1','--series2','--series3','--series4'].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+const state={fixed:[],custom:[],current:null,hover:-1,painting:false,domain:null,undo:[],redo:[],tableDirty:false,tableBuilt:false,audTimer:null};
+const EDIT_MAX=1000;
+
+/* ---------------- 库列表 ---------------- */
+async function api(path,options){const res=await fetch(path,options);const isJson=(res.headers.get('Content-Type')||'').includes('json');const data=isJson?await res.json():null;if(!res.ok)throw new Error((data&&data.error)||`HTTP ${res.status}`);return data}
+
+function libRow(kind,voice){
+  const row=document.createElement('div');row.className='lib-row';row.tabIndex=0;row.setAttribute('role','button');
+  const name=document.createElement('span');name.className='lib-name';name.textContent=voice.name;
+  row.append(name);
+  const type=document.createElement('span');type.className='badge '+(voice.type==='smp'?'green':'blue');type.textContent=voice.type==='smp'?'提取':'嵌入';row.append(type);
+  if(state.current&&state.current.kind===kind&&state.current.id===voice.id)row.classList.add('active');
+  if(kind==='custom'){
+    const rn=document.createElement('button');rn.className='mini';rn.textContent='改名';rn.onclick=e=>{e.stopPropagation();renameVoice(voice)};
+    const ex=document.createElement('button');ex.className='mini';ex.textContent='导出';ex.onclick=e=>{e.stopPropagation();exportVoice(voice)};
+    const de=document.createElement('button');de.className='mini';de.textContent='删除';de.onclick=e=>{e.stopPropagation();deleteVoice(voice)};
+    row.append(rn,ex,de);
+  }else{
+    const ex=document.createElement('button');ex.className='mini';ex.textContent='导出';ex.onclick=e=>{e.stopPropagation();exportVoice(voice)};
+    row.append(ex);
+  }
+  const open=()=>loadVoice(kind,voice.id);
+  row.onclick=open;
+  row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}};
+  return row;
+}
+function renderLibrary(){
+  const box=$('library');box.replaceChildren();
+  const fixedGroup=document.createElement('div');fixedGroup.className='lib-group';
+  const ft=document.createElement('div');ft.className='lib-title';ft.textContent=`固定音色（${state.fixed.length} 个 · 不可删除）`;fixedGroup.append(ft);
+  for(const v of state.fixed)fixedGroup.append(libRow('fixed',v));
+  box.append(fixedGroup);
+  const customGroup=document.createElement('div');customGroup.className='lib-group';
+  const ct=document.createElement('div');ct.className='lib-title';ct.textContent=`自定义音色（${state.custom.length} 个）`;customGroup.append(ct);
+  if(!state.custom.length){const e=document.createElement('div');e.className='lib-empty';e.textContent='还没有自定义音色；在右侧编辑后“另存”，或在左下方从 WAV 提取。';customGroup.append(e)}
+  for(const v of state.custom)customGroup.append(libRow('custom',v));
+  box.append(customGroup);
+}
+async function refreshLibrary(){
+  const data=await api('/api/voices');state.fixed=data.voices||[];state.custom=data.custom||[];renderLibrary();
+  if(!state.current&&data.engine&&data.engine.state)$('cur_meta').textContent=`模型状态：${data.engine.state}`;
+}
+
+async function renameVoice(voice){
+  const name=prompt('新的音色名称',voice.name);if(name===null)return;
+  const trimmed=name.trim();if(!trimmed){alert('名称不能为空');return}
+  try{
+    await api('/api/speaker/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:voice.id,name:trimmed})});
+    if(state.current&&state.current.id===voice.id){state.current.name=trimmed;updateHeader()}
+    await refreshLibrary();
+  }catch(e){alert(e.message)}
+}
+async function deleteVoice(voice){
+  if(!confirm(`删除自定义音色“${voice.name}”？此操作不可恢复。`))return;
+  try{await api('/api/speaker/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:voice.id})});
+    if(state.current&&state.current.kind==='custom'&&state.current.id===voice.id){state.current=null;clearEditor()}
+    await refreshLibrary();
+  }catch(e){alert(e.message)}
+}
+function exportVoice(voice){
+  const kind=voice.id&&voice.id.startsWith('custom_')?'custom':'fixed';
+  $('imp_status').textContent='正在读取音色串…';
+  api(`/api/speaker/detail?id=${encodeURIComponent(voice.id)}&kind=${kind}`).then(d=>{
+    const raw=d.raw||'';if(!raw){$('imp_status').textContent='该音色没有可导出的串。';return}
+    const blob=new Blob([raw],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=`${voice.name.replace(/[\\/:*?"<>|]/g,'_')}_${voice.id}.txt`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    $('imp_status').textContent=`已导出“${voice.name}”的音色串（${d.type==='smp'?'音频提示':'嵌入向量'}）。`;
+  }).catch(e=>{$('imp_status').textContent=`导出失败：${e.message}`});
+}
+
+/* ---------------- 载入音色 ---------------- */
+async function loadVoice(kind,id){
+  $('cur_meta').textContent='正在读取音色数据…';
+  let d;try{d=await api(`/api/speaker/detail?id=${encodeURIComponent(id)}&kind=${kind}`)}catch(e){$('cur_meta').textContent=`读取失败：${e.message}`;return}
+  state.current=d;state.undo=[];state.redo=[];state.tableBuilt=false;state.tableDirty=false;$('table_box').style.display='none';
+  if(d.type==='emb'){
+    d.edit=Float64Array.from(d.vector);d.original=Float64Array.from(d.vector);
+    $('emb_tools').style.display='';$('smp_tools').style.display='none';
+    $('chart_title').textContent=`音色嵌入向量（${d.dim} 维）`;
+    $('chart_hint').textContent='在图上按住拖动可直接改写曲线；也可用下方工具批量调整或打开数值表逐个修改。';
+    $('legend').replaceChildren();
+  }else{
+    d.edit=null;
+    $('emb_tools').style.display='none';$('smp_tools').style.display='';
+    $('smp_text').value=d.txt_smp||'';
+    $('chart_title').textContent='音频提示 token（分层码本，只读）';
+    $('chart_hint').textContent='提取音色由参考音频的分层 token 组成，不支持数值编辑；可试听、改名、删除或调整参考文本。';
+    const lg=$('legend');lg.replaceChildren();
+    for(let i=0;i<d.layers;i++){const item=document.createElement('span');const key=document.createElement('i');key.className='key';key.style.borderTopColor=SERIES[i%SERIES.length];const label=document.createTextNode(`第${i+1}层`);item.append(key,label);lg.append(item)}
+  }
+  updateHeader();renderTiles();state.domain=null;drawChart();
+  $('cur_meta').textContent=d.kind==='fixed'?'固定音色 · 只读（编辑后需另存为新音色）':`自定义音色 · 创建于 ${d.created||'未知时间'}`;
+  renderLibrary();
+}
+function clearEditor(){
+  state.current=null;state.domain=null;
+  $('cur_name').textContent='未选择音色';$('cur_badges').replaceChildren();$('cur_meta').textContent='从左侧选择一个音色查看图形。';
+  $('tiles').replaceChildren();$('legend').replaceChildren();const ctx=chartCtx();ctx.clearRect(0,0,$('chart').width,$('chart').height);
+  $('emb_tools').style.display='none';$('smp_tools').style.display='none';$('chart_hint').textContent='';
+}
+function updateHeader(){
+  const c=state.current;if(!c)return;
+  $('cur_name').textContent=c.name;
+  const badges=$('cur_badges');badges.replaceChildren();
+  const kind=document.createElement('span');kind.className='badge';kind.textContent=c.kind==='fixed'?'固定':'自定义';
+  const type=document.createElement('span');type.className='badge '+(c.type==='smp'?'green':'blue');type.textContent=c.type==='smp'?'音频提示提取':'嵌入向量';
+  badges.append(kind,type);
+  $('cur_dirty').style.display=(c.type==='emb'&&c.edit&&dirty())?'':'none';
+}
+function dirty(){const c=state.current;if(!c||!c.edit||!c.original)return false;for(let i=0;i<c.edit.length;i++)if(c.edit[i]!==c.original[i])return true;return false}
+
+function renderTiles(){
+  const box=$('tiles');box.replaceChildren();const c=state.current;if(!c)return;
+  const tile=(label,value)=>{const t=document.createElement('div');t.className='tile';const l=document.createElement('div');l.className='t-label';l.textContent=label;const v=document.createElement('div');v.className='t-value';v.textContent=value;t.append(l,v);box.append(t)};
+  if(c.type==='emb'){
+    const s=stats(c.edit);tile('维度',c.dim);tile('最小',s.min.toFixed(2));tile('最大',s.max.toFixed(2));tile('均值',s.mean.toFixed(3));tile('L2 范数',s.l2.toFixed(2));
+  }else{
+    tile('层数',c.layers);tile('帧数',c.frames);tile('参考时长 ≈',(c.frames*512/24000).toFixed(1)+' 秒');tile('参考文本',c.txt_smp?c.txt_smp.slice(0,10)+(c.txt_smp.length>10?'…':''):'未填写');
+  }
+}
+function stats(vec){let mn=Infinity,mx=-Infinity,sum=0,sq=0;for(const v of vec){if(v<mn)mn=v;if(v>mx)mx=v;sum+=v;sq+=v*v}const n=vec.length;return{min:mn,max:mx,mean:sum/n,l2:Math.sqrt(sq)}}
+
+/* ---------------- 图表 ---------------- */
+function chartCtx(){const canvas=$('chart');const dpr=window.devicePixelRatio||1;const rect=canvas.getBoundingClientRect();const w=Math.max(50,rect.width),h=Math.max(50,rect.height);if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w,h}}
+function pad(){const c=state.current;return{left:48,right:c&&c.type==='smp'&&c.layers>1?58:18,top:14,bottom:26}}
+function seriesData(){const c=state.current;if(!c)return[];if(c.type==='emb')return[{name:'嵌入值',color:SERIES[0],data:c.edit}];const out=[];for(let i=0;i<c.layers;i++)out.push({name:`第${i+1}层`,color:SERIES[i%SERIES.length],data:(c.rows[i]||[])});return out}
+function computeDomain(series){
+  let lo=0,hi=0;
+  for(const s of series)for(const v of s.data){if(v<lo)lo=v;if(v>hi)hi=v}
+  if(lo===hi){lo-=1;hi+=1}
+  const span=hi-lo,padV=span*0.1;return{lo:lo-padV,hi:hi+padV};
+}
+function niceTicks(lo,hi,count){
+  const span=hi-lo,raw=span/Math.max(1,count),mag=Math.pow(10,Math.floor(Math.log10(raw))),norm=raw/mag;
+  const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;const out=[];
+  for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)out.push(Math.abs(v)<step/1e6?0:v);
+  return out;
+}
+function xTicks(){
+  const c=state.current;if(!c)return[];
+  const n=c.type==='emb'?768:c.frames;const raw=n/6,mag=Math.pow(10,Math.floor(Math.log10(raw))),norm=raw/mag;
+  const step=Math.max(1,(norm<1.5?1:norm<3?2:norm<7?5:10)*mag);const out=[];
+  for(let v=0;v<=n;v+=step)out.push(v);return out;
+}
+function drawChart(hoverIndex){
+  const c=state.current;const{ctx,w,h}=chartCtx();ctx.clearRect(0,0,w,h);
+  if(!c){ctx.fillStyle='#8c7562';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('选择左侧音色后这里会显示其图形',w/2,h/2);return}
+  const p=pad();const series=seriesData();
+  if(!state.domain)state.domain=computeDomain(series);
+  const{lo,hi}=state.domain;
+  const x0=p.left,x1=w-p.right,y0=h-p.bottom,y1=p.top;
+  const n=c.type==='emb'?768:c.frames;
+  const X=i=>x0+(x1-x0)*(n<=1?0:i/(n-1));
+  const Y=v=>y0-(y0-y1)*((v-lo)/(hi-lo||1)); // 值域高端在上
+  ctx.font='11px system-ui';
+  // 网格与 y 轴刻度
+  for(const t of niceTicks(lo,hi,4)){
+    const y=Y(t);ctx.strokeStyle=t===0?'#d9c4a9':'#f1e5d4';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();
+    ctx.fillStyle='#8c7562';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(String(Math.round(t*100)/100),x0-7,y);
+  }
+  // x 轴刻度
+  ctx.fillStyle='#8c7562';ctx.textAlign='center';ctx.textBaseline='top';
+  for(const t of xTicks())ctx.fillText(String(t),X(t),y0+7);
+  // 序列
+  for(const s of series){
+    if(!s.data.length)continue;
+    if(series.length===1){ // 单序列：10% 面积
+      ctx.beginPath();ctx.moveTo(X(0),Y(0));for(let i=0;i<s.data.length;i++)ctx.lineTo(X(i),Y(s.data[i]));ctx.lineTo(X(s.data.length-1),Y(0));ctx.closePath();
+      ctx.save();ctx.globalAlpha=0.10;ctx.fillStyle=s.color;ctx.fill();ctx.restore();
+    }
+    ctx.strokeStyle=s.color;ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();for(let i=0;i<s.data.length;i++){const px=X(i),py=Y(s.data[i]);i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.stroke();
+    // 端点标记（含表面色描环）
+    const last=s.data.length-1;ctx.beginPath();ctx.arc(X(last),Y(s.data[last]),4,0,Math.PI*2);ctx.fillStyle=s.color;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fffdf8';ctx.stroke();
+  }
+  // 双序列：直接标签
+  if(series.length>1){
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    const placed=[];
+    series.forEach(s=>{
+      if(!s.data.length)return;const last=s.data.length-1;let y=Y(s.data[last]);
+      while(placed.some(v=>Math.abs(v-y)<12))y+=12;placed.push(y);
+      ctx.strokeStyle=s.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x1+4,y);ctx.lineTo(x1+14,y);ctx.stroke();
+      ctx.fillStyle='#4a3425';ctx.fillText(s.name,x1+17,y);
+    });
+  }
+  // 悬停十字线与点
+  if(hoverIndex!==undefined&&hoverIndex>=0&&hoverIndex<n&&!state.painting){
+    ctx.strokeStyle='#b8a288';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(hoverIndex)+0.5,y1);ctx.lineTo(X(hoverIndex)+0.5,y0);ctx.stroke();
+    for(const s of series){if(hoverIndex>=s.data.length)continue;ctx.beginPath();ctx.arc(X(hoverIndex),Y(s.data[hoverIndex]),4,0,Math.PI*2);ctx.fillStyle=s.color;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fffdf8';ctx.stroke()}
+  }
+  state.X=X;state.Y=Y;state.plot={x0,x1,y0,y1,n};
+}
+function indexAtEvent(e){
+  const canvas=$('chart');const rect=canvas.getBoundingClientRect();const p=pad();
+  const px=e.clientX-rect.left;
+  const{plot}=state;if(!plot)return-1;
+  if(px<plot.x0-8||px>plot.x1+8)return-1;
+  const t=(px-plot.x0)/((plot.x1-plot.x0)||1);
+  return Math.max(0,Math.min(plot.n-1,Math.round(t*(plot.n-1))));
+}
+function valueAtEvent(e){
+  const canvas=$('chart');const rect=canvas.getBoundingClientRect();
+  const py=e.clientY-rect.top;const{domain}=state;const{plot}=state;if(!domain||!plot)return null;
+  const t=(plot.y0-py)/((plot.y0-plot.y1)||1);
+  return domain.lo+t*(domain.hi-domain.lo);
+}
+function showTooltip(e,index){
+  const tip=$('tooltip');const c=state.current;if(!c||index<0){tip.style.display='none';return}
+  const series=seriesData();
+  tip.replaceChildren();
+  const xrow=document.createElement('div');xrow.className='tt-x';xrow.textContent=(c.type==='emb'?`维度 #${index}`:`帧 #${index}`);tip.append(xrow);
+  for(const s of series){
+    if(index>=s.data.length)continue;
+    const row=document.createElement('div');row.className='tt-row';
+    const key=document.createElement('i');key.className='tt-key';key.style.borderTopColor=s.color;
+    const val=document.createElement('span');val.className='tt-val';val.textContent=(Math.round(s.data[index]*10000)/10000).toString();
+    const name=document.createElement('span');name.className='tt-name';name.textContent=s.name;
+    row.append(key,val,name);tip.append(row);
+  }
+  tip.style.display='block';
+  const wrap=$('chart').parentElement.getBoundingClientRect();const rect=$('chart').getBoundingClientRect();
+  let left=rect.left-wrap.left+ (state.X?state.X(index):0)+12;
+  if(left+tip.offsetWidth>wrap.width-4)left=rect.left-wrap.left-6-tip.offsetWidth;
+  tip.style.left=Math.max(0,left)+'px';tip.style.top='10px';
+}
+function pushUndo(){
+  const c=state.current;if(!c||!c.edit)return;
+  state.undo.push(Float64Array.from(c.edit));if(state.undo.length>80)state.undo.shift();state.redo=[];
+}
+function afterEdit(structural){
+  const c=state.current;if(!c)return;
+  if(structural)state.domain=null;
+  drawChart();renderTiles();updateHeader();
+  refreshTableIfOpen();
+}
+function applyPaint(from,to,value){
+  const c=state.current;if(!c||!c.edit)return;
+  const v=Math.max(-EDIT_MAX,Math.min(EDIT_MAX,value));
+  if(from===to){c.edit[to]=v;return}
+  const a=Math.min(from,to),b=Math.max(from,to);
+  const startV=c.edit[a],endV=v; // 到目标点的线性插值
+  for(let i=a;i<=b;i++){const t=(i-a)/(b-a);c.edit[i]=startV+(endV-startV)*t}
+}
+
+/* ---------------- 指针交互 ---------------- */
+(function(){
+  const canvas=$('chart');
+  canvas.addEventListener('pointerdown',e=>{
+    const c=state.current;if(!c||c.type!=='emb')return;
+    const idx=indexAtEvent(e);if(idx<0)return;
+    const val=valueAtEvent(e);if(val===null)return;
+    canvas.setPointerCapture(e.pointerId);state.painting=true;pushUndo();
+    applyPaint(idx,idx,val);afterEdit(false);
+    $('pt_idx').value=idx;$('pt_val').value=(Math.round(val*10000)/10000);
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(state.painting){
+      const idx=indexAtEvent(e);if(idx<0)return;
+      const val=valueAtEvent(e);if(val===null)return;
+      const c=state.current;const last=Math.round(Number($('pt_idx').value));
+      applyPaint(Number.isFinite(last)?last:idx,idx,val);
+      $('pt_idx').value=idx;$('pt_val').value=(Math.round(val*10000)/10000);
+      afterEdit(false);return;
+    }
+    const idx=indexAtEvent(e);state.hover=idx;
+    drawChart(idx);showTooltip(e,idx);
+  });
+  const end=()=>{if(state.painting){state.painting=false;state.domain=null;drawChart();renderTiles();updateHeader()}};
+  canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
+  canvas.addEventListener('pointerleave',()=>{if(!state.painting){state.hover=-1;$('tooltip').style.display='none';drawChart()}});
+  window.addEventListener('resize',()=>drawChart(state.hover));
+})();
+
+/* ---------------- 编辑工具 ---------------- */
+$('pt_set').onclick=()=>{
+  const c=state.current;if(!c||c.type!=='emb'){alert('请先选择一个嵌入向量音色');return}
+  const idx=Math.round(Number($('pt_idx').value));const val=Number($('pt_val').value);
+  if(!(idx>=0&&idx<=767)){alert('序号须在 0~767 之间');return}
+  if(!Number.isFinite(val)){alert('数值无效');return}
+  pushUndo();c.edit[idx]=Math.max(-EDIT_MAX,Math.min(EDIT_MAX,val));afterEdit(false);
+};
+$('op_scale_btn').onclick=()=>{const f=Number($('op_scale').value);bulk(v=>v*f,'缩放系数无效')};
+$('op_shift_btn').onclick=()=>{const d=Number($('op_shift').value);bulk(v=>v+d,'偏移量无效')};
+$('op_jitter_btn').onclick=()=>{const a=Number($('op_jitter').value);if(!(a>0)){alert('抖动幅度须大于 0');return}bulk(v=>v+(Math.random()*2-1)*a,'抖动幅度无效')};
+$('op_smooth_btn').onclick=()=>{
+  const c=state.current;if(!c||!c.edit)return;const win=Math.round(Number($('op_smooth').value));
+  if(!(win>=2)){alert('平滑窗口至少为 2');return}
+  pushUndo();const src=Float64Array.from(c.edit);const half=Math.floor(win/2);
+  for(let i=0;i<c.edit.length;i++){let sum=0,cnt=0;for(let j=i-half;j<=i+half;j++){if(j>=0&&j<src.length){sum+=src[j];cnt++}}c.edit[i]=sum/cnt}
+  afterEdit(true);
+};
+$('op_zero_btn').onclick=()=>{
+  const c=state.current;if(!c||!c.edit)return;
+  const a=Math.round(Number($('op_zero_from').value)),b=Math.round(Number($('op_zero_to').value));
+  if(!(a>=0&&b>=0&&a<=767&&b<=767)){alert('区间端点须在 0~767 之间');return}
+  pushUndo();for(let i=Math.min(a,b);i<=Math.max(a,b);i++)c.edit[i]=0;afterEdit(true);
+};
+function bulk(fn,msg){
+  const c=state.current;if(!c||!c.edit){alert('请先选择一个嵌入向量音色');return}
+  const param=c.edit.map(fn);
+  if(param.some(v=>!Number.isFinite(v))){alert(msg);return}
+  pushUndo();c.edit.set(param);afterEdit(true);
+}
+$('op_undo').onclick=()=>{
+  const c=state.current;if(!c||!c.edit)return;
+  if(!state.undo.length){return}
+  state.redo.push(Float64Array.from(c.edit));c.edit.set(state.undo.pop());afterEdit(true);
+};
+$('op_redo').onclick=()=>{
+  const c=state.current;if(!c||!c.edit)return;
+  if(!state.redo.length)return;
+  state.undo.push(Float64Array.from(c.edit));c.edit.set(state.redo.pop());afterEdit(true);
+};
+$('op_reset').onclick=()=>{
+  const c=state.current;if(!c||!c.edit||!c.original)return;
+  pushUndo();c.edit.set(c.original);afterEdit(true);
+};
+
+/* ---------------- 数值表 ---------------- */
+$('tbl_toggle').onclick=()=>{
+  const box=$('table_box');
+  if(box.style.display==='none'){buildTable();box.style.display=''}else box.style.display='none';
+};
+function buildTable(){
+  const c=state.current;const box=$('table_box');box.replaceChildren();
+  if(!c||c.type!=='emb')return;
+  const table=document.createElement('table');table.className='values';
+  const head=document.createElement('thead');const hr=document.createElement('tr');
+  for(const t of['序号','数值']){const th=document.createElement('th');th.textContent=t;th.style.textAlign=t==='序号'?'right':'left';hr.append(th)}
+  head.append(hr);table.append(head);
+  const body=document.createElement('tbody');
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<c.edit.length;i++){
+    const tr=document.createElement('tr');
+    const td=document.createElement('td');td.className='idx';td.textContent=i;
+    const td2=document.createElement('td');const input=document.createElement('input');input.type='number';input.step='0.001';input.value=c.edit[i];
+    input.addEventListener('focus',()=>{pushUndo()}); // 在修改前留撤销快照
+    input.addEventListener('input',()=>{const v=Number(input.value);if(Number.isFinite(v))c.edit[i]=Math.max(-EDIT_MAX,Math.min(EDIT_MAX,v));drawChart();renderTiles();updateHeader()});
+    td2.append(input);tr.append(td,td2);frag.append(tr);
+  }
+  body.append(frag);table.append(body);box.append(table);
+  state.tableBuilt=true;state.tableDirty=false;
+}
+function refreshTableIfOpen(){
+  const box=$('table_box');if(box.style.display==='none')return;
+  if(state.tableDirty){buildTable();return}
+}
+
+/* ---------------- 提取音色数值表（只读） ---------------- */
+$('smp_tbl_toggle').onclick=()=>{
+  const box=$('smp_table_box');
+  if(box.style.display==='none'){buildSmpTable();box.style.display=''}else box.style.display='none';
+};
+function buildSmpTable(){
+  const c=state.current;const box=$('smp_table_box');box.replaceChildren();
+  if(!c||c.type!=='smp')return;
+  const table=document.createElement('table');table.className='values';
+  const head=document.createElement('tr');
+  const th0=document.createElement('th');th0.textContent='帧';head.append(th0);
+  for(let i=0;i<c.layers;i++){const th=document.createElement('th');th.textContent=`第${i+1}层`;head.append(th)}
+  const thead=document.createElement('thead');thead.append(head);table.append(thead);
+  const body=document.createElement('tbody');const frag=document.createDocumentFragment();
+  const maxRows=Math.min(c.frames,3000);
+  for(let f=0;f<maxRows;f++){
+    const tr=document.createElement('tr');
+    const td=document.createElement('td');td.className='idx';td.textContent=f;tr.append(td);
+    for(let i=0;i<c.layers;i++){const td=document.createElement('td');td.textContent=(c.rows[i]&&c.rows[i][f]!==undefined)?c.rows[i][f]:'';tr.append(td)}
+    frag.append(tr);
+  }
+  body.append(frag);table.append(body);box.append(table);
+  if(c.frames>maxRows){const note=document.createElement('div');note.className='small';note.style.padding='8px 10px';note.textContent=`帧数较多，仅显示前 ${maxRows} 帧。`;box.append(note)}
+}
+
+/* ---------------- 另存 / 导出 ---------------- */
+$('save_btn').onclick=async()=>{
+  const c=state.current;
+  if(!c||c.type!=='emb'){alert('请先选择一个嵌入向量音色；提取类音色不支持数值编辑。');return}
+  const name=$('save_name').value.trim();
+  if(!name){alert('请填写另存名称');return}
+  $('save_btn').disabled=true;
+  try{
+    const res=await api('/api/speaker/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'vector',name,vector:Array.from(c.edit),source:c.kind==='fixed'?'edit:'+c.id:'edit'})});
+    $('save_name').value='';
+    await refreshLibrary();
+    await loadVoice('custom',res.voice.id);
+    $('cur_meta').textContent=`已另存为新音色“${res.voice.name}”，可在左侧列表与设计台中使用。`;
+  }catch(e){alert(`另存失败：${e.message}`)}
+  finally{$('save_btn').disabled=false}
+};
+$('export_btn').onclick=()=>{
+  const c=state.current;if(!c)return;
+  if(!c.raw){alert('当前音色没有可导出的串');return}
+  if(c.type==='emb'&&dirty()){if(!confirm('当前有未保存的编辑；导出的将是载入时的原始音色串。要继续吗？'))return}
+  const blob=new Blob([c.raw],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=`${c.name.replace(/[\\/:*?"<>|]/g,'_')}_${c.id}.txt`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+};
+$('smp_save_text').onclick=async()=>{
+  const c=state.current;if(!c||c.kind!=='custom'||c.type!=='smp')return;
+  try{await api('/api/speaker/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id,txt_smp:$('smp_text').value})});
+    c.txt_smp=$('smp_text').value;renderTiles();$('cur_meta').textContent='参考文本已保存。';await refreshLibrary();
+  }catch(e){alert(`保存失败：${e.message}`)}
+};
+
+/* ---------------- 导入 ---------------- */
+$('imp_type').addEventListener('change',()=>{$('imp_text_row').style.display=$('imp_type').value==='smp'?'':'none'});
+$('imp_btn').onclick=async()=>{
+  const raw=$('imp_string').value.trim();
+  if(!raw){$('imp_status').textContent='请先粘贴音色串。';return}
+  $('imp_btn').disabled=true;$('imp_status').textContent='正在导入…';
+  try{
+    const res=await api('/api/speaker/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'string',name:$('imp_name').value.trim(),string:raw,voice_type:$('imp_type').value,text:$('imp_text').value.trim()})});
+    $('imp_string').value='';$('imp_name').value='';$('imp_text').value='';$('imp_status').textContent=`已导入并保存为“${res.voice.name}”。`;
+    await refreshLibrary();await loadVoice('custom',res.voice.id);
+  }catch(e){$('imp_status').textContent=`导入失败：${e.message}`}
+  finally{$('imp_btn').disabled=false}
+};
+
+/* ---------------- WAV 提取 ---------------- */
+let wavFile=null,wavUrl=null;
+$('wav_file').addEventListener('change',()=>{
+  wavFile=$('wav_file').files[0]||null;
+  if(wavUrl){URL.revokeObjectURL(wavUrl);wavUrl=null}
+  if(!wavFile){$('wav_preview').style.display='none';$('wav_preview').removeAttribute('src');$('wav_info').textContent='';$('wav_btn').disabled=true;return}
+  wavUrl=URL.createObjectURL(wavFile);
+  const audio=$('wav_preview');audio.src=wavUrl;audio.style.display='';
+  audio.onloadedmetadata=()=>{
+    const sec=audio.duration&&Number.isFinite(audio.duration)?audio.duration.toFixed(1)+' 秒':'未知';
+    $('wav_info').textContent=`文件：${wavFile.name} · 时长 ${sec} · 大小 ${(wavFile.size/1048576).toFixed(2)} MB`;
+  };
+  $('wav_btn').disabled=false;
+});
+$('wav_btn').onclick=async()=>{
+  if(!wavFile){return}
+  $('wav_btn').disabled=true;
+  const started=Date.now();
+  $('wav_status').textContent='正在提取…首次使用会下载并加载模型，可能需要几分钟，请不要关闭页面。';
+  state.audTimer=setInterval(()=>{$('wav_status').textContent=`正在提取，已等待 ${Math.floor((Date.now()-started)/1000)} 秒；首次加载模型较慢，请耐心等待。`},2000);
+  try{
+    const query=`name=${encodeURIComponent($('wav_name').value.trim())}&text=${encodeURIComponent($('wav_text').value.trim())}`;
+    const res=await api(`/api/speaker/extract?${query}`,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:wavFile});
+    clearInterval(state.audTimer);
+    $('wav_status').textContent=`提取完成：使用了前 ${res.seconds} 秒音频，得到 ${res.layers} 层 × ${res.frames} 帧，已保存为“${res.voice.name}”。`;
+    $('wav_name').value='';$('wav_text').value='';$('wav_file').value='';$('wav_preview').style.display='none';$('wav_preview').removeAttribute('src');$('wav_info').textContent='';$('wav_btn').disabled=true;wavFile=null;
+    if(wavUrl){URL.revokeObjectURL(wavUrl);wavUrl=null}
+    await refreshLibrary();await loadVoice('custom',res.voice.id);
+  }catch(e){clearInterval(state.audTimer);$('wav_status').textContent=`提取失败：${e.message}`}
+  finally{$('wav_btn').disabled=false}
+};
+
+/* ---------------- 试听 ---------------- */
+function voiceSpec(){
+  const c=state.current;if(!c)return null;
+  if(c.type==='emb')return{kind:'vector',vector:Array.from(c.edit)};
+  if(c.kind==='custom')return{kind:'custom',id:c.id};
+  return null;
+}
+$('aud_btn').onclick=async()=>{
+  const spec=voiceSpec();
+  if(!spec){$('aud_status').textContent='请先在左侧选择一个音色。';return}
+  const text=$('aud_text').value.trim()||'你好，这是当前音色的试听。';
+  $('aud_btn').disabled=true;const started=Date.now();
+  $('aud_status').textContent='正在合成…首次使用会下载并加载模型，请保持页面打开。';
+  state.audTimer=setInterval(()=>{$('aud_status').textContent=`正在合成，已等待 ${Math.floor((Date.now()-started)/1000)} 秒；首次加载模型较慢，请耐心等待。`},2000);
+  try{
+    const res=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,rate:Number($('aud_rate').value),voice:spec})});
+    if(!res.ok){const data=await res.json().catch(()=>null);throw new Error((data&&data.error)||`HTTP ${res.status}`)}
+    const blob=await res.blob();clearInterval(state.audTimer);
+    const url=URL.createObjectURL(blob);$('aud_audio').src=url;$('aud_status').textContent='合成完成，正在播放。';
+    $('aud_audio').play().catch(()=>{$('aud_status').textContent='合成完成；点击播放器播放。'});
+  }catch(e){clearInterval(state.audTimer);$('aud_status').textContent=`合成失败：${e.message}`}
+  finally{$('aud_btn').disabled=false}
+};
+
+/* ---------------- 启动 ---------------- */
+(async()=>{
+  try{await refreshLibrary()}catch(e){$('library').replaceChildren();const d=document.createElement('div');d.className='lib-empty';d.textContent=`音色库加载失败：${e.message}`;$('library').append(d)}
+  const params=new URLSearchParams(location.search);
+  const voice=params.get('voice'),kind=params.get('kind')==='custom'?'custom':'fixed';
+  if(voice&&(kind==='custom'?state.custom.some(v=>v.id===voice):state.fixed.some(v=>v.id===voice)))await loadVoice(kind,voice);
+})();
+drawChart();
+</script>
+</body>
+</html>
