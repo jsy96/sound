@@ -1,6 +1,6 @@
 {
- "format": 3,
- "generated": "2026-11-03T18:53:57",
+ "format": 4,
+ "generated": "2026-11-03T19:35:34",
  "espeak": "eSpeak NG text-to-speech: 1.52.0  Data at: C:\\Program Files\\eSpeak NG\\/espeak-ng-data",
  "voices": [
   "ar",
@@ -20,39 +20,24 @@
   "ru",
   "vi"
  ],
- "preferred_voice": "en-gb",
- "map": {
-  "a": {
-   "ar": "a",
-   "cmn": "a",
-   "cmn-latn-pinyin": "a",
-   "de": "a",
-   "en-gb": "a",
-   "es": "a",
-   "fr": "a",
-   "hi": "a",
-   "it": "a",
-   "ja": "a",
-   "nl": "a",
-   "pl": "a",
-   "ru": "a",
-   "vi": "a"
-  },
-  "b": {
-   "ar": "b",
-   "cmn": "b",
-   "cmn-latn-pinyin": "b",
-   "en-gb": "b",
-   "en-us": "b",
-   "es": "b",
-   "fr": "b",
-   "hi": "b",
-   "it": "b",
-   "ja": "b",
-   "ko": "b",
-   "pl": "b",
-   "ru": "b",
-   "vi": "b"
+ "exact": {
+  "c": {
+   "ar": "c",
+   "cmn": "c",
+   "cmn-latn-pinyin": "c",
+   "de": "c",
+   "en-gb": "c",
+   "en-us": "c",
+   "es": "c",
+   "fr": "c",
+   "hi": "c",
+   "it": "c",
+   "ja": "c",
+   "ko": "c",
+   "nl": "c",
+   "pl": "c",
+   "ru": "c",
+   "vi": "c"
   },
   "d": {
    "ar": "d",
@@ -82,25 +67,11 @@
    "it": "dz",
    "ja": "dz",
    "ko": "dz",
-   "pl": "dz",
    "ru": "dz",
    "vi": "dz"
   },
   "dʑ": {
-   "ar": "dz\\",
-   "cmn": "dz\\",
-   "cmn-latn-pinyin": "dz\\",
-   "en-gb": "dz\\",
-   "en-us": "dz\\",
-   "es": "dz\\",
-   "fr": "dz\\",
-   "hi": "dz\\",
-   "it": "dz\\",
-   "ja": "dz\\",
-   "ko": "dz\\",
-   "pl": "dz\\",
-   "ru": "dz\\",
-   "vi": "dz\\"
+   "pl": "dz\\"
   },
   "dʒ": {
    "ar": "dZ",
@@ -118,10 +89,11 @@
    "ru": "dZ",
    "vi": "dZ"
   },
+  "dʲ": {
+   "ja": "d_j"
+  },
   "e": {
    "ar": "e",
-   "cmn": "e",
-   "cmn-latn-pinyin": "e",
    "de": "e",
    "en-gb": "e",
    "en-us": "e",
@@ -133,8 +105,7 @@
    "ko": "e",
    "nl": "e",
    "pl": "e",
-   "ru": "e",
-   "vi": "e"
+   "ru": "e"
   },
   "f": {
    "ar": "f",
@@ -174,8 +145,6 @@
   },
   "i": {
    "ar": "i",
-   "cmn": "i",
-   "cmn-latn-pinyin": "i",
    "de": "i",
    "en-gb": "i",
    "en-us": "i",
@@ -187,8 +156,7 @@
    "ko": "i",
    "nl": "i",
    "pl": "i",
-   "ru": "i",
-   "vi": "i"
+   "ru": "i"
   },
   "j": {
    "ar": "j",
@@ -226,42 +194,6 @@
    "ru": "k",
    "vi": "k"
   },
-  "kʰ": {
-   "ar": "k_h",
-   "cmn": "k_h",
-   "cmn-latn-pinyin": "k_h",
-   "de": "k_h",
-   "en-gb": "k_h",
-   "en-us": "k_h",
-   "es": "k_h",
-   "fr": "k_h",
-   "hi": "k_h",
-   "it": "k_h",
-   "ja": "k_h",
-   "ko": "k_h",
-   "nl": "k_h",
-   "pl": "k_h",
-   "ru": "k_h",
-   "vi": "k_h"
-  },
-  "kʼ": {
-   "ar": "k_>",
-   "cmn": "k_>",
-   "cmn-latn-pinyin": "k_>",
-   "de": "k_>",
-   "en-gb": "k_>",
-   "en-us": "k_>",
-   "es": "k_>",
-   "fr": "k_>",
-   "hi": "k_>",
-   "it": "k_>",
-   "ja": "k_>",
-   "ko": "k_>",
-   "nl": "k_>",
-   "pl": "k_>",
-   "ru": "k_>",
-   "vi": "k_>"
-  },
   "l": {
    "ar": "l",
    "cmn": "l",
@@ -278,6 +210,22 @@
    "nl": "l",
    "pl": "l",
    "vi": "l"
+  },
+  "l̥": {
+   "ar": "l_0",
+   "cmn": "l_0",
+   "cmn-latn-pinyin": "l_0",
+   "de": "l_0",
+   "en-us": "l_0",
+   "es": "l_0",
+   "fr": "l_0",
+   "hi": "l_0",
+   "it": "l_0",
+   "ja": "l_0",
+   "ko": "l_0",
+   "nl": "l_0",
+   "pl": "l_0",
+   "vi": "l_0"
   },
   "m": {
    "ar": "m",
@@ -315,10 +263,11 @@
    "ru": "n",
    "vi": "n"
   },
+  "nʲ": {
+   "ja": "n_j"
+  },
   "o": {
    "ar": "o",
-   "cmn": "o",
-   "cmn-latn-pinyin": "o",
    "de": "o",
    "en-gb": "o",
    "en-us": "o",
@@ -330,8 +279,7 @@
    "ko": "o",
    "nl": "o",
    "pl": "o",
-   "ru": "o",
-   "vi": "o"
+   "ru": "o"
   },
   "p": {
    "ar": "p",
@@ -350,42 +298,6 @@
    "pl": "p",
    "ru": "p",
    "vi": "p"
-  },
-  "pʰ": {
-   "ar": "p_h",
-   "cmn": "p_h",
-   "cmn-latn-pinyin": "p_h",
-   "de": "p_h",
-   "en-gb": "p_h",
-   "en-us": "p_h",
-   "es": "p_h",
-   "fr": "p_h",
-   "hi": "p_h",
-   "it": "p_h",
-   "ja": "p_h",
-   "ko": "p_h",
-   "nl": "p_h",
-   "pl": "p_h",
-   "ru": "p_h",
-   "vi": "p_h"
-  },
-  "pʼ": {
-   "ar": "p_>",
-   "cmn": "p_>",
-   "cmn-latn-pinyin": "p_>",
-   "de": "p_>",
-   "en-gb": "p_>",
-   "en-us": "p_>",
-   "es": "p_>",
-   "fr": "p_>",
-   "hi": "p_>",
-   "it": "p_>",
-   "ja": "p_>",
-   "ko": "p_>",
-   "nl": "p_>",
-   "pl": "p_>",
-   "ru": "p_>",
-   "vi": "p_>"
   },
   "q": {
    "ar": "q",
@@ -419,6 +331,19 @@
    "ru": "r",
    "vi": "r"
   },
+  "r̥": {
+   "ar": "r_0",
+   "cmn": "r_0",
+   "cmn-latn-pinyin": "r_0",
+   "en-us": "r_0",
+   "it": "r_0",
+   "ja": "r_0",
+   "ko": "r_0",
+   "nl": "r_0",
+   "pl": "r_0",
+   "ru": "r_0",
+   "vi": "r_0"
+  },
   "s": {
    "ar": "s",
    "cmn": "s",
@@ -436,6 +361,26 @@
    "pl": "s",
    "ru": "s",
    "vi": "s"
+  },
+  "sʲ": {
+   "ja": "s_j"
+  },
+  "s̥": {
+   "ar": "s_0",
+   "cmn": "s_0",
+   "cmn-latn-pinyin": "s_0",
+   "de": "s_0",
+   "en-us": "s_0",
+   "es": "s_0",
+   "fr": "s_0",
+   "hi": "s_0",
+   "it": "s_0",
+   "ja": "s_0",
+   "ko": "s_0",
+   "nl": "s_0",
+   "pl": "s_0",
+   "ru": "s_0",
+   "vi": "s_0"
   },
   "t": {
    "ar": "t",
@@ -474,22 +419,7 @@
    "vi": "ts"
   },
   "tɕ": {
-   "ar": "ts\\",
-   "cmn": "ts\\",
-   "cmn-latn-pinyin": "ts\\",
-   "de": "ts\\",
-   "en-gb": "ts\\",
-   "en-us": "ts\\",
-   "es": "ts\\",
-   "fr": "ts\\",
-   "hi": "ts\\",
-   "it": "ts\\",
-   "ja": "ts\\",
-   "ko": "ts\\",
-   "nl": "ts\\",
-   "pl": "ts\\",
-   "ru": "ts\\",
-   "vi": "ts\\"
+   "ja": "ts\\"
   },
   "tʃ": {
    "ar": "tS",
@@ -509,46 +439,11 @@
    "ru": "tS",
    "vi": "tS"
   },
-  "tʰ": {
-   "ar": "t_h",
-   "cmn": "t_h",
-   "cmn-latn-pinyin": "t_h",
-   "de": "t_h",
-   "en-gb": "t_h",
-   "en-us": "t_h",
-   "es": "t_h",
-   "fr": "t_h",
-   "hi": "t_h",
-   "it": "t_h",
-   "ja": "t_h",
-   "ko": "t_h",
-   "nl": "t_h",
-   "pl": "t_h",
-   "ru": "t_h",
-   "vi": "t_h"
-  },
-  "tʼ": {
-   "ar": "t_>",
-   "cmn": "t_>",
-   "cmn-latn-pinyin": "t_>",
-   "de": "t_>",
-   "en-gb": "t_>",
-   "en-us": "t_>",
-   "es": "t_>",
-   "fr": "t_>",
-   "hi": "t_>",
-   "it": "t_>",
-   "ja": "t_>",
-   "ko": "t_>",
-   "nl": "t_>",
-   "pl": "t_>",
-   "ru": "t_>",
-   "vi": "t_>"
+  "tʲ": {
+   "ja": "t_j"
   },
   "u": {
    "ar": "u",
-   "cmn": "u",
-   "cmn-latn-pinyin": "u",
    "de": "u",
    "en-gb": "u",
    "en-us": "u",
@@ -558,8 +453,7 @@
    "ko": "u",
    "nl": "u",
    "pl": "u",
-   "ru": "u",
-   "vi": "u"
+   "ru": "u"
   },
   "v": {
    "ar": "v",
@@ -613,14 +507,11 @@
    "vi": "x"
   },
   "y": {
-   "cmn": "y",
-   "cmn-latn-pinyin": "y",
    "es": "y",
    "fr": "y",
    "it": "y",
    "nl": "y",
-   "ru": "y",
-   "vi": "y"
+   "ru": "y"
   },
   "z": {
    "ar": "z",
@@ -638,42 +529,42 @@
    "ru": "z",
    "vi": "z"
   },
-  "ã": {
-   "ar": "a~",
-   "cmn": "a~",
-   "cmn-latn-pinyin": "a~",
-   "de": "a~",
-   "en-gb": "a~",
-   "es": "a~",
-   "fr": "a~",
-   "hi": "a~",
-   "it": "a~",
-   "ja": "a~",
-   "nl": "a~",
-   "pl": "a~",
-   "ru": "a~",
-   "vi": "a~"
+  "z̥": {
+   "ar": "z_0",
+   "cmn": "z_0",
+   "cmn-latn-pinyin": "z_0",
+   "en-us": "z_0",
+   "es": "z_0",
+   "fr": "z_0",
+   "hi": "z_0",
+   "it": "z_0",
+   "ja": "z_0",
+   "ko": "z_0",
+   "nl": "z_0",
+   "pl": "z_0",
+   "ru": "z_0",
+   "vi": "z_0"
   },
   "æ": {
-   "en-us": "a"
+   "en-us": "{"
   },
   "ç": {
-   "ar": "C\\",
-   "cmn": "C\\",
-   "cmn-latn-pinyin": "C\\",
-   "de": "C\\",
-   "en-gb": "C\\",
-   "en-us": "C\\",
-   "es": "C\\",
-   "fr": "C\\",
-   "hi": "C\\",
-   "it": "C\\",
-   "ja": "C\\",
-   "ko": "C\\",
-   "nl": "C\\",
-   "pl": "C\\",
-   "ru": "C\\",
-   "vi": "C\\"
+   "ar": "C",
+   "cmn": "C",
+   "cmn-latn-pinyin": "C",
+   "de": "C",
+   "en-gb": "C",
+   "en-us": "C",
+   "es": "C",
+   "fr": "C",
+   "hi": "C",
+   "it": "C",
+   "ja": "C",
+   "ko": "C",
+   "nl": "C",
+   "pl": "C",
+   "ru": "C",
+   "vi": "C"
   },
   "ð": {
    "ar": "D",
@@ -691,11 +582,38 @@
    "ru": "D",
    "vi": "D"
   },
+  "õ": {
+   "ar": "o~",
+   "de": "o~",
+   "en-gb": "o~",
+   "en-us": "o~",
+   "es": "o~",
+   "fr": "o~",
+   "hi": "o~",
+   "it": "o~",
+   "ja": "o~",
+   "ko": "o~",
+   "nl": "o~",
+   "pl": "o~",
+   "ru": "o~"
+  },
   "ø": {
    "fr": "Y"
   },
-  "ħ": {
-   "ar": "H\\"
+  "ĩ": {
+   "ar": "i~",
+   "de": "i~",
+   "en-gb": "i~",
+   "en-us": "i~",
+   "es": "i~",
+   "fr": "i~",
+   "hi": "i~",
+   "it": "i~",
+   "ja": "i~",
+   "ko": "i~",
+   "nl": "i~",
+   "pl": "i~",
+   "ru": "i~"
   },
   "ŋ": {
    "ar": "N",
@@ -715,25 +633,28 @@
    "ru": "N",
    "vi": "N"
   },
-  "ɑ": {
-   "cmn": "A",
-   "cmn-latn-pinyin": "A",
-   "de": "A",
-   "nl": "A",
-   "ru": "A"
+  "œ": {
+   "fr": "W"
   },
-  "ɑ̃": {
-   "cmn": "A~",
-   "cmn-latn-pinyin": "A~",
-   "de": "A~",
-   "en-gb": "A~",
-   "en-us": "A~",
-   "fr": "A~",
-   "nl": "A~",
-   "ru": "A~"
+  "ũ": {
+   "ar": "u~",
+   "de": "u~",
+   "en-gb": "u~",
+   "en-us": "u~",
+   "es": "u~",
+   "fr": "u~",
+   "hi": "u~",
+   "ja": "u~",
+   "ko": "u~",
+   "nl": "u~",
+   "pl": "u~",
+   "ru": "u~"
+  },
+  "ɐ": {
+   "ko": "6"
   },
   "ɒ": {
-   "en-gb": "0#"
+   "en-gb": "0"
   },
   "ɔ": {
    "de": "O",
@@ -743,8 +664,7 @@
    "fr": "O",
    "hi": "O",
    "nl": "O",
-   "pl": "O",
-   "vi": "O"
+   "pl": "O"
   },
   "ɔ̃": {
    "de": "O~",
@@ -754,13 +674,16 @@
    "fr": "O~",
    "hi": "O~",
    "nl": "O~",
-   "pl": "O~",
-   "vi": "O~"
+   "pl": "O~"
+  },
+  "ɕ": {
+   "ja": "s\\"
+  },
+  "ɗ": {
+   "vi": "d_<"
   },
   "ə": {
    "ar": "@",
-   "cmn": "@",
-   "cmn-latn-pinyin": "@",
    "de": "@",
    "en-gb": "@",
    "en-us": "@",
@@ -771,15 +694,12 @@
    "ja": "@",
    "nl": "@",
    "pl": "@",
-   "ru": "@",
-   "vi": "@"
+   "ru": "@"
   },
   "ɚ": {
    "en-us": "3`"
   },
   "ɛ": {
-   "cmn": "E",
-   "cmn-latn-pinyin": "E",
    "de": "E",
    "en-gb": "E",
    "en-us": "E",
@@ -789,12 +709,9 @@
    "ko": "E",
    "nl": "E",
    "pl": "E",
-   "ru": "E",
-   "vi": "E"
+   "ru": "E"
   },
   "ɛ̃": {
-   "cmn": "E~",
-   "cmn-latn-pinyin": "E~",
    "de": "E~",
    "en-gb": "E~",
    "en-us": "E~",
@@ -804,11 +721,26 @@
    "ko": "E~",
    "nl": "E~",
    "pl": "E~",
-   "ru": "E~",
-   "vi": "E~"
+   "ru": "E~"
   },
   "ɜ": {
    "de": "3"
+  },
+  "ɟ": {
+   "ar": "J\\",
+   "cmn": "J\\",
+   "cmn-latn-pinyin": "J\\",
+   "en-gb": "J\\",
+   "en-us": "J\\",
+   "es": "J\\",
+   "fr": "J\\",
+   "hi": "J\\",
+   "it": "J\\",
+   "ja": "J\\",
+   "ko": "J\\",
+   "pl": "J\\",
+   "ru": "J\\",
+   "vi": "J\\"
   },
   "ɡ": {
    "ar": "g",
@@ -835,11 +767,20 @@
    "nl": "I",
    "ru": "I"
   },
+  "ɪ̈": {
+   "de": "I\\",
+   "en-gb": "I\\",
+   "fr": "I\\",
+   "hi": "I\\",
+   "it": "I\\",
+   "nl": "I\\",
+   "ru": "I\\"
+  },
   "ɭ": {
    "ru": "l`"
   },
   "ɲ": {
-   "it": "n^:"
+   "it": "n^"
   },
   "ɴ": {
    "ja": "N\\"
@@ -886,6 +827,17 @@
    "hi": "U",
    "it": "U"
   },
+  "ʊ̈": {
+   "de": "U\\",
+   "en-gb": "U\\",
+   "en-us": "U\\",
+   "es": "U\\",
+   "hi": "U\\",
+   "it": "U\\"
+  },
+  "ʋ": {
+   "hi": "v\\"
+  },
   "ʌ": {
    "en-gb": "V",
    "en-us": "V",
@@ -894,6 +846,9 @@
   },
   "ʎ": {
    "es": "l^"
+  },
+  "ʐ": {
+   "cmn": "z."
   },
   "ʒ": {
    "cmn": "Z",
@@ -932,20 +887,20 @@
    "es": "J^"
   },
   "β": {
-   "ar": "B\\",
-   "cmn": "B\\",
-   "cmn-latn-pinyin": "B\\",
-   "en-gb": "B\\",
-   "en-us": "B\\",
-   "es": "B\\",
-   "fr": "B\\",
-   "hi": "B\\",
-   "it": "B\\",
-   "ja": "B\\",
-   "ko": "B\\",
-   "pl": "B\\",
-   "ru": "B\\",
-   "vi": "B\\"
+   "ar": "B",
+   "cmn": "B",
+   "cmn-latn-pinyin": "B",
+   "en-gb": "B",
+   "en-us": "B",
+   "es": "B",
+   "fr": "B",
+   "hi": "B",
+   "it": "B",
+   "ja": "B",
+   "ko": "B",
+   "pl": "B",
+   "ru": "B",
+   "vi": "B"
   },
   "θ": {
    "ar": "T",
@@ -982,18 +937,601 @@
    "pl": "X",
    "ru": "X",
    "vi": "X"
+  },
+  "ẽ": {
+   "ar": "e~",
+   "de": "e~",
+   "en-gb": "e~",
+   "en-us": "e~",
+   "es": "e~",
+   "fr": "e~",
+   "hi": "e~",
+   "it": "e~",
+   "ja": "e~",
+   "ko": "e~",
+   "nl": "e~",
+   "pl": "e~",
+   "ru": "e~"
+  }
+ },
+ "loose": {
+  "a": {
+   "ar": "a",
+   "cmn": "a",
+   "cmn-latn-pinyin": "a",
+   "de": "a",
+   "en-gb": "a",
+   "es": "a",
+   "fr": "a",
+   "hi": "a",
+   "it": "a",
+   "ja": "a",
+   "nl": "a",
+   "pl": "a",
+   "ru": "a",
+   "vi": "a"
+  },
+  "a˞": {
+   "ar": "a`",
+   "cmn": "a`",
+   "cmn-latn-pinyin": "a`",
+   "de": "a`",
+   "en-gb": "a`",
+   "es": "a`",
+   "fr": "a`",
+   "hi": "a`",
+   "it": "a`",
+   "ja": "a`",
+   "nl": "a`",
+   "pl": "a`",
+   "ru": "a`",
+   "vi": "a`"
+  },
+  "b": {
+   "ar": "b",
+   "cmn": "b",
+   "cmn-latn-pinyin": "b",
+   "en-gb": "b",
+   "en-us": "b",
+   "es": "b",
+   "fr": "b",
+   "hi": "b",
+   "it": "b",
+   "ja": "b",
+   "ko": "b",
+   "pl": "b",
+   "ru": "b",
+   "vi": "b"
+  },
+  "bʱ": {
+   "ar": "b_h",
+   "cmn": "b_h",
+   "cmn-latn-pinyin": "b_h",
+   "en-gb": "b_h",
+   "en-us": "b_h",
+   "es": "b_h",
+   "fr": "b_h",
+   "hi": "b_h",
+   "it": "b_h",
+   "ja": "b_h",
+   "ko": "b_h",
+   "nl": "b_h",
+   "pl": "b_h",
+   "ru": "b_h",
+   "vi": "b_h"
+  },
+  "dz": {
+   "pl": "dz"
+  },
+  "dʑ": {
+   "ar": "dz\\",
+   "cmn": "dz\\",
+   "cmn-latn-pinyin": "dz\\",
+   "en-gb": "dz\\",
+   "en-us": "dz\\",
+   "es": "dz\\",
+   "fr": "dz\\",
+   "hi": "dz\\",
+   "it": "dz\\",
+   "ja": "dz\\",
+   "ko": "dz\\",
+   "ru": "dz\\",
+   "vi": "dz\\"
+  },
+  "dʱ": {
+   "ar": "d_h",
+   "cmn": "d_h",
+   "cmn-latn-pinyin": "d_h",
+   "en-gb": "d_h",
+   "en-us": "d_h",
+   "es": "d_h",
+   "fr": "d_h",
+   "hi": "d_h",
+   "it": "d_h",
+   "ja": "d_h",
+   "ko": "d_h",
+   "nl": "d_h",
+   "pl": "d_h",
+   "ru": "d_h"
+  },
+  "dʲ": {
+   "ar": "d_j",
+   "cmn": "d_j",
+   "cmn-latn-pinyin": "d_j",
+   "en-gb": "d_j",
+   "en-us": "d_j",
+   "es": "d_j",
+   "fr": "d_j",
+   "hi": "d_j",
+   "it": "d_j",
+   "ko": "d_j",
+   "nl": "d_j",
+   "pl": "d_j",
+   "ru": "d_j"
+  },
+  "dˤ": {
+   "ar": "d_?",
+   "cmn": "d_?",
+   "cmn-latn-pinyin": "d_?",
+   "en-gb": "d_?",
+   "en-us": "d_?",
+   "es": "d_?",
+   "fr": "d_?",
+   "hi": "d_?",
+   "it": "d_?",
+   "ja": "d_?",
+   "ko": "d_?",
+   "nl": "d_?",
+   "pl": "d_?",
+   "ru": "d_?"
+  },
+  "e": {
+   "cmn": "e",
+   "cmn-latn-pinyin": "e",
+   "vi": "e"
+  },
+  "i": {
+   "cmn": "i",
+   "cmn-latn-pinyin": "i",
+   "vi": "i"
+  },
+  "kʰ": {
+   "ar": "k_h",
+   "cmn": "k_h",
+   "cmn-latn-pinyin": "k_h",
+   "de": "k_h",
+   "en-gb": "k_h",
+   "en-us": "k_h",
+   "es": "k_h",
+   "fr": "k_h",
+   "hi": "k_h",
+   "it": "k_h",
+   "ja": "k_h",
+   "ko": "k_h",
+   "nl": "k_h",
+   "pl": "k_h",
+   "ru": "k_h",
+   "vi": "k_h"
+  },
+  "kʷ": {
+   "ar": "k_w",
+   "cmn": "k_w",
+   "cmn-latn-pinyin": "k_w",
+   "de": "k_w",
+   "en-gb": "k_w",
+   "en-us": "k_w",
+   "es": "k_w",
+   "fr": "k_w",
+   "hi": "k_w",
+   "it": "k_w",
+   "ja": "k_w",
+   "ko": "k_w",
+   "nl": "k_w",
+   "pl": "k_w",
+   "ru": "k_w",
+   "vi": "k_w"
+  },
+  "kʼ": {
+   "ar": "k_>",
+   "cmn": "k_>",
+   "cmn-latn-pinyin": "k_>",
+   "de": "k_>",
+   "en-gb": "k_>",
+   "en-us": "k_>",
+   "es": "k_>",
+   "fr": "k_>",
+   "hi": "k_>",
+   "it": "k_>",
+   "ja": "k_>",
+   "ko": "k_>",
+   "nl": "k_>",
+   "pl": "k_>",
+   "ru": "k_>",
+   "vi": "k_>"
+  },
+  "l̥": {
+   "en-gb": "l_0"
+  },
+  "nʲ": {
+   "ar": "n_j",
+   "cmn": "n_j",
+   "cmn-latn-pinyin": "n_j",
+   "de": "n_j",
+   "en-gb": "n_j",
+   "en-us": "n_j",
+   "es": "n_j",
+   "fr": "n_j",
+   "hi": "n_j",
+   "it": "n_j",
+   "ko": "n_j",
+   "nl": "n_j",
+   "pl": "n_j",
+   "ru": "n_j",
+   "vi": "n_j"
+  },
+  "o": {
+   "cmn": "o",
+   "cmn-latn-pinyin": "o",
+   "vi": "o"
+  },
+  "o˞": {
+   "ar": "o`",
+   "cmn": "o`",
+   "cmn-latn-pinyin": "o`",
+   "de": "o`",
+   "en-gb": "o`",
+   "en-us": "o`",
+   "es": "o`",
+   "fr": "o`",
+   "hi": "o`",
+   "it": "o`",
+   "ja": "o`",
+   "ko": "o`",
+   "nl": "o`",
+   "pl": "o`",
+   "ru": "o`",
+   "vi": "o`"
+  },
+  "pʰ": {
+   "ar": "p_h",
+   "cmn": "p_h",
+   "cmn-latn-pinyin": "p_h",
+   "de": "p_h",
+   "en-gb": "p_h",
+   "en-us": "p_h",
+   "es": "p_h",
+   "fr": "p_h",
+   "hi": "p_h",
+   "it": "p_h",
+   "ja": "p_h",
+   "ko": "p_h",
+   "nl": "p_h",
+   "pl": "p_h",
+   "ru": "p_h",
+   "vi": "p_h"
+  },
+  "pʼ": {
+   "ar": "p_>",
+   "cmn": "p_>",
+   "cmn-latn-pinyin": "p_>",
+   "de": "p_>",
+   "en-gb": "p_>",
+   "en-us": "p_>",
+   "es": "p_>",
+   "fr": "p_>",
+   "hi": "p_>",
+   "it": "p_>",
+   "ja": "p_>",
+   "ko": "p_>",
+   "nl": "p_>",
+   "pl": "p_>",
+   "ru": "p_>",
+   "vi": "p_>"
+  },
+  "r̥": {
+   "en-gb": "r_0"
+  },
+  "sʲ": {
+   "ar": "s_j",
+   "cmn": "s_j",
+   "cmn-latn-pinyin": "s_j",
+   "de": "s_j",
+   "en-gb": "s_j",
+   "en-us": "s_j",
+   "es": "s_j",
+   "fr": "s_j",
+   "hi": "s_j",
+   "it": "s_j",
+   "ko": "s_j",
+   "nl": "s_j",
+   "pl": "s_j",
+   "ru": "s_j",
+   "vi": "s_j"
+  },
+  "sʷ": {
+   "ar": "s_w",
+   "cmn": "s_w",
+   "cmn-latn-pinyin": "s_w",
+   "de": "s_w",
+   "en-gb": "s_w",
+   "en-us": "s_w",
+   "es": "s_w",
+   "fr": "s_w",
+   "hi": "s_w",
+   "it": "s_w",
+   "ja": "s_w",
+   "ko": "s_w",
+   "nl": "s_w",
+   "pl": "s_w",
+   "ru": "s_w",
+   "vi": "s_w"
+  },
+  "sˤ": {
+   "ar": "s_?",
+   "cmn": "s_?",
+   "cmn-latn-pinyin": "s_?",
+   "de": "s_?",
+   "en-gb": "s_?",
+   "en-us": "s_?",
+   "es": "s_?",
+   "fr": "s_?",
+   "hi": "s_?",
+   "it": "s_?",
+   "ja": "s_?",
+   "ko": "s_?",
+   "nl": "s_?",
+   "pl": "s_?",
+   "ru": "s_?",
+   "vi": "s_?"
+  },
+  "s̥": {
+   "en-gb": "s_0"
+  },
+  "tsʼ": {
+   "ar": "ts_>",
+   "cmn": "ts_>",
+   "cmn-latn-pinyin": "ts_>",
+   "de": "ts_>",
+   "en-gb": "ts_>",
+   "en-us": "ts_>",
+   "es": "ts_>",
+   "fr": "ts_>",
+   "hi": "ts_>",
+   "it": "ts_>",
+   "ja": "ts_>",
+   "ko": "ts_>",
+   "nl": "ts_>",
+   "pl": "ts_>",
+   "ru": "ts_>",
+   "vi": "ts_>"
+  },
+  "tɕ": {
+   "ar": "ts\\",
+   "cmn": "ts\\",
+   "cmn-latn-pinyin": "ts\\",
+   "de": "ts\\",
+   "en-gb": "ts\\",
+   "en-us": "ts\\",
+   "es": "ts\\",
+   "fr": "ts\\",
+   "hi": "ts\\",
+   "it": "ts\\",
+   "ko": "ts\\",
+   "nl": "ts\\",
+   "pl": "ts\\",
+   "ru": "ts\\",
+   "vi": "ts\\"
+  },
+  "tʰ": {
+   "ar": "t_h",
+   "cmn": "t_h",
+   "cmn-latn-pinyin": "t_h",
+   "de": "t_h",
+   "en-gb": "t_h",
+   "en-us": "t_h",
+   "es": "t_h",
+   "fr": "t_h",
+   "hi": "t_h",
+   "it": "t_h",
+   "ja": "t_h",
+   "ko": "t_h",
+   "nl": "t_h",
+   "pl": "t_h",
+   "ru": "t_h",
+   "vi": "t_h"
+  },
+  "tʲ": {
+   "ar": "t_j",
+   "cmn": "t_j",
+   "cmn-latn-pinyin": "t_j",
+   "de": "t_j",
+   "en-gb": "t_j",
+   "en-us": "t_j",
+   "es": "t_j",
+   "fr": "t_j",
+   "hi": "t_j",
+   "it": "t_j",
+   "ko": "t_j",
+   "nl": "t_j",
+   "pl": "t_j",
+   "ru": "t_j",
+   "vi": "t_j"
+  },
+  "tʼ": {
+   "ar": "t_>",
+   "cmn": "t_>",
+   "cmn-latn-pinyin": "t_>",
+   "de": "t_>",
+   "en-gb": "t_>",
+   "en-us": "t_>",
+   "es": "t_>",
+   "fr": "t_>",
+   "hi": "t_>",
+   "it": "t_>",
+   "ja": "t_>",
+   "ko": "t_>",
+   "nl": "t_>",
+   "pl": "t_>",
+   "ru": "t_>",
+   "vi": "t_>"
+  },
+  "tˤ": {
+   "ar": "t_?",
+   "cmn": "t_?",
+   "cmn-latn-pinyin": "t_?",
+   "de": "t_?",
+   "en-gb": "t_?",
+   "en-us": "t_?",
+   "es": "t_?",
+   "fr": "t_?",
+   "hi": "t_?",
+   "it": "t_?",
+   "ja": "t_?",
+   "ko": "t_?",
+   "nl": "t_?",
+   "pl": "t_?",
+   "ru": "t_?",
+   "vi": "t_?"
+  },
+  "u": {
+   "cmn": "u",
+   "cmn-latn-pinyin": "u",
+   "vi": "u"
+  },
+  "xʷ": {
+   "ar": "x_w",
+   "cmn": "x_w",
+   "cmn-latn-pinyin": "x_w",
+   "de": "x_w",
+   "en-gb": "x_w",
+   "en-us": "x_w",
+   "es": "x_w",
+   "fr": "x_w",
+   "hi": "x_w",
+   "it": "x_w",
+   "ja": "x_w",
+   "ko": "x_w",
+   "nl": "x_w",
+   "pl": "x_w",
+   "ru": "x_w",
+   "vi": "x_w"
+  },
+  "y": {
+   "cmn": "y",
+   "cmn-latn-pinyin": "y",
+   "vi": "y"
+  },
+  "z̥": {
+   "en-gb": "z_0"
+  },
+  "ã": {
+   "ar": "a~",
+   "cmn": "a~",
+   "cmn-latn-pinyin": "a~",
+   "de": "a~",
+   "en-gb": "a~",
+   "es": "a~",
+   "fr": "a~",
+   "hi": "a~",
+   "it": "a~",
+   "ja": "a~",
+   "nl": "a~",
+   "pl": "a~",
+   "ru": "a~",
+   "vi": "a~"
+  },
+  "õ": {
+   "cmn": "o~",
+   "cmn-latn-pinyin": "o~",
+   "vi": "o~"
+  },
+  "ĩ": {
+   "cmn": "i~",
+   "cmn-latn-pinyin": "i~",
+   "vi": "i~"
+  },
+  "ũ": {
+   "cmn": "u~",
+   "cmn-latn-pinyin": "u~",
+   "vi": "u~"
+  },
+  "ɑ": {
+   "cmn": "A",
+   "cmn-latn-pinyin": "A",
+   "de": "A",
+   "nl": "A",
+   "ru": "A"
+  },
+  "ɑ̃": {
+   "cmn": "A~",
+   "cmn-latn-pinyin": "A~",
+   "de": "A~",
+   "en-gb": "A~",
+   "en-us": "A~",
+   "fr": "A~",
+   "nl": "A~",
+   "ru": "A~"
+  },
+  "ɔ": {
+   "vi": "O"
+  },
+  "ɔ̃": {
+   "vi": "O~"
+  },
+  "ə": {
+   "cmn": "@",
+   "cmn-latn-pinyin": "@",
+   "vi": "@"
+  },
+  "ɛ": {
+   "cmn": "E",
+   "cmn-latn-pinyin": "E",
+   "vi": "E"
+  },
+  "ɛ̃": {
+   "cmn": "E~",
+   "cmn-latn-pinyin": "E~",
+   "vi": "E~"
+  },
+  "ʂ": {
+   "cmn": "s."
+  },
+  "ʅ": {
+   "cmn": "s."
+  },
+  "ʈʂ": {
+   "cmn": "ts."
+  },
+  "ẽ": {
+   "cmn": "e~",
+   "cmn-latn-pinyin": "e~",
+   "vi": "e~"
   }
  },
  "controls": {
+  "ˈ": {
+   "ar": "\"",
+   "cmn": "\"",
+   "cmn-latn-pinyin": "\"",
+   "de": "\"",
+   "en-gb": "\"",
+   "en-us": "\""
+  },
   "ː": {
    "ar": ":",
    "cmn": ":",
    "cmn-latn-pinyin": ":",
    "de": ":",
    "en-gb": ":",
-   "en-us": ":",
-   "nl": ":",
-   "ru": ":"
+   "en-us": ":"
+  },
+  "ˑ": {
+   "ar": ":\\",
+   "cmn": ":\\",
+   "cmn-latn-pinyin": ":\\",
+   "de": ":\\",
+   "en-gb": ":\\",
+   "en-us": ":\\"
   },
   "˥": {
    "cmn": "_1",
@@ -1002,6 +1540,10 @@
   "˥˩": {
    "cmn": "_4",
    "cmn-latn-pinyin": "_4"
+  },
+  "˦˨": {
+   "cmn": "_6",
+   "cmn-latn-pinyin": "_6"
   },
   "˧": {
    "cmn": "_5",
@@ -1014,46 +1556,72 @@
   "˨˩˦": {
    "cmn": "_3",
    "cmn-latn-pinyin": "_3"
+  },
+  "‿": {
+   "ar": "-",
+   "en-gb": "-",
+   "en-us": "-"
   }
  },
  "attach": {
+  "ˈ": false,
   "ː": true,
-  ".": false,
+  "ˑ": true,
+  "‿": false,
   "˥": true,
   "˧˥": true,
   "˨˩˦": true,
   "˥˩": true,
-  "˧": true
+  "˧": true,
+  "˦˨": true
  },
  "unsupported": [
-  "œ",
+  "gʱ",
+  "gʷ",
+  "tʃʼ",
+  "ø̃",
+  "ħ",
   "œ̃",
-  "ɐ",
+  "ǀ",
+  "ǁ",
+  "ǂ",
+  "ǃ",
+  "ɓ",
   "ɖ",
   "ɖʐ",
   "ɘ",
   "ɞ",
+  "ɠ",
+  "ɢ",
   "ɣ",
   "ɤ",
+  "ɥ",
   "ɦ",
+  "ɧ",
   "ɨ",
+  "ɫ",
+  "ɬ",
+  "ɮ",
   "ɯ",
+  "ɰ",
   "ɱ",
   "ɳ",
   "ɶ",
   "ɹ",
+  "ɺ",
   "ɻ",
   "ʀ",
-  "ʂ",
+  "ʄ",
   "ʈ",
-  "ʈʂ",
   "ʉ",
-  "ʋ",
   "ʍ",
   "ʏ",
-  "ʐ",
+  "ʑ",
   "ʕ",
+  "ʘ",
   "ʙ",
+  "ʛ",
+  "ʜ",
   "ʟ"
  ]
 }

@@ -35,6 +35,11 @@ if __name__ == "__main__":
     for text, name in cases:
         preview(text)
         check(text, name)
+    print("== 声部指定（严/宽分层）==")
+    for voice in ("", "fr", "cmn"):
+        payload = s.world_preview({"text": "b a ʒ a", "voice": voice})
+        tiers = "".join("严" if item.get("exact") else "宽" for item in payload["symbols"] if item.get("supported"))
+        print(f"    voice={payload['voice'] or 'auto'} phonemes={payload['phonemes']!r} 分层={tiers} errors={payload['errors'][:1]}")
     print("== render 全链路（espeak -> ffmpeg 滤镜）==")
     data, path = s.render_audio(
         {"chinese": "b ɔ̃ ʒ u ʁ", "text_mode": "world", "base_voice": "speaker_001", "rate": 5}

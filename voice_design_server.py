@@ -971,10 +971,11 @@ WORLD_MAX_SYMBOLS = 600
 WORLD_PUNCT = _PINYIN_PUNCT
 _world_lock = threading.Lock()
 _world_loaded = False
-_world_map: dict[str, dict[str, str]] = {}  # IPA 符号 -> {声部: espeak 代码}（多声部并记）
+_world_exact: dict[str, dict[str, str]] = {}  # 严式层：符号 -> {声部: 代码}（--ipa 输出与符号严格一致）
+_world_loose: dict[str, dict[str, str]] = {}  # 宽式层：仅含基本字符（实际发音被声部着色）
 _world_controls: dict[str, dict[str, str]] = {}  # 超音段符号 -> {声部: espeak 控制串}
 _world_attach: dict[str, bool] = {}  # 符号 -> 是否附着到前一个音素代码（长音/声调）
-_world_voices: list[str] = []  # 声部偏好序（preferred 在前）
+_world_voices: list[str] = []  # 声部清单（严式覆盖最多者优先）
 _world_bases: frozenset[str] = frozenset()
 # 变音符号（修饰字母/组合记号）：与基础符号组合成键。
 # 注意 ː（长音）不在此列——它是控制符号（附着到前一音素），由 controls 表处理。
@@ -998,7 +999,7 @@ def _espeak_exe() -> str | None:
 
 
 def _world_load() -> None:
-    global _world_loaded, _world_map, _world_controls, _world_voices, _world_bases
+    global _world_loaded, _world_exact, _world_loose, _world_controls, _world_attach, _world_voices, _world_bases
     with _world_lock:
         if _world_loaded:
             return
@@ -1009,28 +1010,34 @@ def _world_load() -> None:
                 "assets/espeak_ipa_map.json。"
             )
         payload = json.loads(WORLD_MAP_FILE.read_text(encoding="utf-8"))
-        table = payload.get("map")
+        exact = payload.get("exact")
+        loose = payload.get("loose")
         controls = payload.get("controls")
-        if not isinstance(table, dict) or not table or not isinstance(controls, dict):
+        if not isinstance(exact, dict) or not isinstance(loose, dict) or not isinstance(controls, dict):
             raise RuntimeError("通用音标映射表内容不完整，请重新运行 verify_espeak_map.py。")
-        _world_map = {
+        _world_exact = {
             str(k): {str(v): str(c) for v, c in vs.items()}
-            for k, vs in table.items()
-            if isinstance(vs, dict) and vs
+            for k, vs in exact.items() if isinstance(vs, dict) and vs
+        }
+        _world_loose = {
+            str(k): {str(v): str(c) for v, c in vs.items()}
+            for k, vs in loose.items() if isinstance(vs, dict) and vs
         }
         _world_controls = {
             str(k): {str(v): str(c) for v, c in vs.items()}
-            for k, vs in controls.items()
-            if isinstance(vs, dict) and vs
+            for k, vs in controls.items() if isinstance(vs, dict) and vs
         }
         _world_attach = {str(k): bool(v) for k, v in payload.get("attach", {}).items()}
-        preferred = str(payload.get("preferred_voice", "en-us"))
         voices = [str(v) for v in payload.get("voices", []) if isinstance(v, str)]
-        _world_voices = [preferred] + [v for v in voices if v != preferred]
-        if not _world_voices:
-            _world_voices = ["en-us"]
+        # 严式覆盖最多的声部优先
+        cover: dict[str, int] = {}
+        for mapping in _world_exact.values():
+            for v in mapping:
+                cover[v] = cover.get(v, 0) + 1
+        _world_voices = sorted(set(voices), key=lambda v: -cover.get(v, 0)) or ["en-us"]
+        all_symbols = set(_world_exact) | set(_world_loose)
         _world_bases = frozenset(
-            key for key in _world_map if key and all(ch not in _WORLD_DIACRITICS for ch in key)
+            key for key in all_symbols if key and all(ch not in _WORLD_DIACRITICS for ch in key)
         )
         _world_loaded = True
 
@@ -1079,25 +1086,34 @@ def _world_tokenize(raw: str, errors: list[str]) -> list[str]:
     return tokens
 
 
-def _world_resolve(symbols: list[str]) -> tuple[str, str, list[dict[str, object]], list[str]]:
-    """选择覆盖输入符号最全的声部并解析代码。
+def _world_resolve(
+    symbols: list[str], forced_voice: str = ""
+) -> tuple[str, str, list[dict[str, object]], list[str]]:
+    """选择声部并解析代码（严式层优先）。可指定声部（「语种旋钮」显式化）。
 
-    返回 (声部, espeak 音素串, 符号信息, 错误)。长音/声调等「附着型」控制符号
-    会合并进前一个音素代码（espeak 的 [[...]] 要求 A:、A_3 形式才生效）。
+    返回 (声部, espeak 音素串, 符号信息, 错误)。计分：严式命中权重远高于宽式
+    （宽式=声部着色近似，如 cmn 下 r 实际发 ʐ）；控制符号可用的声部加权。
     """
     errors: list[str] = []
     phoneme_symbols = [s for s in symbols if s not in _world_controls]
     control_symbols = [s for s in symbols if s in _world_controls]
-    score: dict[str, int] = {}
-    for symbol in phoneme_symbols:
-        for voice in _world_map.get(symbol, {}):
-            score[voice] = score.get(voice, 0) + 1
-    # 用到控制符号（长音/声调）时，为支持它们的声部加权——声调只在 tonal 声部有效，
-    # 否则「m a ˥」这类通用音素会把声部选成 en-us，声调就无处附着。
-    for symbol in control_symbols:
-        for voice in _world_controls.get(symbol, {}):
-            score[voice] = score.get(voice, 0) + len(phoneme_symbols)
-    voice = max(_world_voices, key=lambda v: score.get(v, 0))
+    if forced_voice and forced_voice not in _world_voices:
+        forced_voice = ""
+    if forced_voice:
+        voice = forced_voice
+    else:
+        score: dict[str, int] = {}
+        for symbol in phoneme_symbols:
+            for v in _world_exact.get(symbol, {}):
+                score[v] = score.get(v, 0) + 10
+            for v in _world_loose.get(symbol, {}):
+                score[v] = score.get(v, 0) + 1
+        for symbol in control_symbols:
+            for v in _world_controls.get(symbol, {}):
+                # 控制符号（声调/长音）是刚性需求：用户写了声调就必须选支持它的声部，
+                # 权重需盖过任何严式累计分。
+                score[v] = score.get(v, 0) + 1000
+        voice = max(_world_voices, key=lambda v: score.get(v, 0))
     codes: list[str] = []
     info: list[dict[str, object]] = []
     for symbol in symbols:
@@ -1105,7 +1121,7 @@ def _world_resolve(symbols: list[str]) -> tuple[str, str, list[dict[str, object]
             entry = _world_controls[symbol]
             code = entry.get(voice)
             if code is None:
-                errors.append(f"标记“{symbol}”在当前声部（{voice}）下不可用。")
+                errors.append(f"标记“{symbol}”在声部（{voice}）下不可用。")
                 info.append({"ipa": symbol, "espeak": "", "control": True, "supported": False})
                 continue
             if _world_attach.get(symbol):
@@ -1116,27 +1132,31 @@ def _world_resolve(symbols: list[str]) -> tuple[str, str, list[dict[str, object]
                 codes[-1] = codes[-1] + code
             else:
                 codes.append(code)
-            info.append(
-                {"ipa": symbol, "espeak": code, "control": True, "supported": True}
-            )
+            info.append({"ipa": symbol, "espeak": code, "control": True, "supported": True})
             continue
-        entry = _world_map.get(symbol)
-        if not entry:
-            errors.append(f"符号“{symbol}”不在已验证的 espeak 音素表内，无法合成。")
-            info.append({"ipa": symbol, "espeak": "", "supported": False})
-            continue
-        code = entry.get(voice)
+        exact_entry = _world_exact.get(symbol, {})
+        loose_entry = _world_loose.get(symbol, {})
+        code = exact_entry.get(voice) or loose_entry.get(voice)
         if code is None:
-            others = "、".join(sorted(entry))
-            errors.append(
-                f"符号“{symbol}”需要声部 {others}，与当前输入选定的声部（{voice}）不兼容；"
-                "请减少混用不同语言的音。"
-            )
-            info.append({"ipa": symbol, "espeak": "", "supported": False, "voices": sorted(entry)})
+            available = sorted(set(exact_entry) | set(loose_entry))
+            if available:
+                errors.append(
+                    f"符号“{symbol}”需要声部 {'、'.join(available)}，与选定声部（{voice}）不兼容；"
+                    "请换声部或减少混用不同语言的音。"
+                )
+            else:
+                errors.append(f"符号“{symbol}”不在已验证的 espeak 音素表内，无法合成。")
+            info.append({"ipa": symbol, "espeak": "", "supported": False})
             continue
         codes.append(code)
         info.append(
-            {"ipa": symbol, "espeak": code, "supported": True, "voices": sorted(entry)}
+            {
+                "ipa": symbol,
+                "espeak": code,
+                "supported": True,
+                "exact": symbol in exact_entry and voice in exact_entry,
+                "voices": sorted(set(exact_entry) | set(loose_entry)),
+            }
         )
     return voice, " ".join(codes), info, errors
 
@@ -1202,7 +1222,9 @@ def _espeak_run(
         return frames, int(rate)
 
 
-def world_synthesize(text: str, rate: int, pitch: float, volume: float) -> tuple[bytes, int]:
+def world_synthesize(
+    text: str, rate: int, pitch: float, volume: float, forced_voice: str = ""
+) -> tuple[bytes, int]:
     """通用音标模式合成入口：IPA -> 选声部 -> espeak 音素 -> WAV PCM。"""
     _world_load()
     raw = str(text).strip()
@@ -1213,7 +1235,7 @@ def world_synthesize(text: str, rate: int, pitch: float, volume: float) -> tuple
     if token_errors:
         detail = "；".join(str(e).rstrip("。") for e in token_errors[:3])
         raise RuntimeError(detail + ("等。" if len(token_errors) > 3 else "。"))
-    voice, phonemes, _info, errors = _world_resolve(symbols)
+    voice, phonemes, _info, errors = _world_resolve(symbols, forced_voice)
     if errors:
         detail = "；".join(str(e).rstrip("。") for e in errors[:3])
         raise RuntimeError(detail + ("等。" if len(errors) > 3 else "。"))
@@ -1221,39 +1243,44 @@ def world_synthesize(text: str, rate: int, pitch: float, volume: float) -> tuple
 
 
 def world_preview(payload: dict[str, object]) -> dict[str, object]:
-    """通用音标输入的实时预览：符号解析、选中声部、espeak 可用性与已验证符号集。"""
+    """通用音标输入的实时预览：符号解析、选中声部、严/宽分层与已验证符号集。"""
     text = str(payload.get("text", ""))[: WORLD_MAX_SYMBOLS * 3]
+    forced = str(payload.get("voice", "")).strip()[:20]
     try:
         _world_load()
     except RuntimeError as exc:
         return {
             "phonemes": "",
             "voice": "",
+            "voices": [],
             "symbols": [],
             "errors": [str(exc)],
             "espeak": _espeak_exe() or "",
             "supported": [],
         }
     raw = text.strip()
+    all_supported = sorted(set(_world_exact) | set(_world_loose) | set(_world_controls))
     if not raw:
         return {
             "phonemes": "",
             "voice": "",
+            "voices": _world_voices,
             "symbols": [],
             "errors": [],
             "espeak": _espeak_exe() or "",
-            "supported": sorted(set(_world_map) | set(_world_controls)),
+            "supported": all_supported,
         }
     token_errors: list[str] = []
     symbols = _world_tokenize(raw, token_errors)
-    voice, phonemes, info, errors = _world_resolve(symbols)
+    voice, phonemes, info, errors = _world_resolve(symbols, forced)
     return {
         "phonemes": phonemes,
         "voice": voice,
+        "voices": _world_voices,
         "symbols": info,
         "errors": (token_errors + errors)[:8],
         "espeak": _espeak_exe() or "",
-        "supported": sorted(set(_world_map) | set(_world_controls)),
+        "supported": all_supported,
     }
 
 
@@ -1543,7 +1570,9 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
         source_path, render_path = Path(temp) / "source.wav", Path(temp) / "render.wav"
         if text_mode == "world":
             # 通用音标走 espeak-ng，不加载 ChatTTS；仅语速/音高/音量三个参数有效
-            pcm, sample_rate = world_synthesize(text, rate, pitch, volume)
+            pcm, sample_rate = world_synthesize(
+                text, rate, pitch, volume, str(params.get("world_voice", "")).strip()[:20]
+            )
         else:
             pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice, mode=text_mode)
         with wave.open(str(source_path), "wb") as source_file:
@@ -1595,7 +1624,9 @@ def preview_audio(payload: dict[str, object]) -> bytes:
     voice = payload.get("voice")
     if text_mode == "world":
         # 通用音标与音色无关（espeak 共振峰合成，没有说话人音色）
-        pcm, sample_rate = world_synthesize(text, rate, 0.0, 0.0)
+        pcm, sample_rate = world_synthesize(
+            text, rate, 0.0, 0.0, str(payload.get("world_voice", "")).strip()[:20]
+        )
     else:
         pcm, sample_rate = ENGINE.synthesize(text, rate, voice, mode=text_mode)
     return wrap_wav(pcm, sample_rate)
