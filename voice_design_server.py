@@ -550,6 +550,413 @@ def pinyin_preview(payload: dict[str, object]) -> dict[str, object]:
     return {"chars": chars, "syllables": info, "errors": errors[:8]}
 
 
+# ---------------------------------------------------------------- IPA input
+# 国际音标（普通话宽式记音）输入：解析成拼音音节后复用上面的同音字管线。
+# ChatTTS 只能发普通话音系内的音，因此 IPA 表只覆盖普通话的声母/韵母/声调；
+# 音系外符号（ð、ʘ、挤喉音、清化元音等）会报错提示。
+#
+# 记法约定（软键盘按此提供符号）：
+#   送气与不送气对立：p=拼音b，pʰ=拼音p（t/k/ts/tʂ/tɕ 同理）；
+#   韵母用标准宽式：a o ɤ(=e) ɛ i u y(=ü) au(=ao) ən(=en) aŋ(=ang) əŋ(=eng) ɚ(=er)；
+#   舌尖元音用 ɿ（z/c/s 组 -i）和 ʅ（zh/ch/sh/r 组 -i）；
+#   声调：Chao 调符 ˥(1) ˧˥(2) ˨˩˦(3) ˥˩(4)，或上标 ¹²³⁴⁵，或普通数字 1-5（轻声 5 或 0）。
+
+_IPA_INITIALS: dict[str, tuple[str, ...]] = {
+    "b": ("p", "b"),
+    "p": ("pʰ", "p'", "ph"),
+    "m": ("m",),
+    "f": ("f",),
+    "d": ("t", "d"),
+    "t": ("tʰ", "t'", "th"),
+    "n": ("n",),
+    "l": ("l",),
+    "g": ("k", "g"),
+    "k": ("kʰ", "k'", "kh"),
+    "h": ("x", "h"),
+    "j": ("tɕ",),
+    "q": ("tɕʰ",),
+    "x": ("ɕ",),
+    "zh": ("tʂ",),
+    "ch": ("tʂʰ",),
+    "sh": ("ʂ",),
+    "r": ("ʐ", "ɻ"),
+    "z": ("ts",),
+    "c": ("tsʰ",),
+    "s": ("s",),
+}
+# 零声母音节的 y/w 拼写还原
+_IPA_ZERO_PREFIX_Y = {"": "i"}  # yi -> i
+_IPA_FINALS: dict[str, tuple[str, ...]] = {
+    "a": ("a",),
+    "o": ("o", "ɔ"),
+    "e": ("ɤ", "e", "ə"),
+    "er": ("ɚ", "əɻ"),
+    "i": ("i",),
+    "u": ("u",),
+    "v": ("y",),
+    "ai": ("ai",),
+    "ei": ("ei",),
+    "ao": ("au", "ɑu"),
+    "ou": ("ou",),
+    "an": ("an",),
+    "en": ("ən", "en"),
+    "ang": ("aŋ", "ɑŋ"),
+    "eng": ("əŋ", "eŋ"),
+    "ong": ("uŋ", "ʊŋ"),
+    "ia": ("ja", "ia"),
+    "ie": ("jɛ", "iɛ"),
+    "iao": ("jau", "iau"),
+    "iu": ("iou", "jou", "ju"),
+    "ian": ("jɛn", "iɛn", "jen"),
+    "in": ("in",),
+    "iang": ("jaŋ", "iaŋ"),
+    "ing": ("iŋ", "iəŋ"),
+    "iong": ("juŋ", "jyŋ", "jəŋ", "uŋ"),  # j/q/x 后宽式常省介音：tɕʰuŋ = qiong
+    "ua": ("wa", "ua"),
+    "uo": ("wo", "uo"),
+    "uai": ("wai", "uai"),
+    "ui": ("wei", "uei", "wi"),
+    "uan": ("wan", "uan"),
+    "un": ("wən", "uən", "wen"),
+    "uang": ("waŋ", "uaŋ"),
+    "ueng": ("wəŋ", "uəŋ"),
+    "ve": ("ɥɛ", "yɛ"),
+    "van": ("ɥɛn", "yɛn"),
+    "vn": ("yn",),
+}
+# 舌尖元音音节与特殊音节（IPA 整体对应，不走声母+韵母拼接）
+_IPA_SPECIALS: dict[str, tuple[str, ...]] = {
+    "zhi": ("tʂʐ̩", "tʂɻ̩", "tʂʅ"),
+    "chi": ("tʂʰʐ̩", "tʂʰɻ̩", "tʂʰʅ"),
+    "shi": ("ʂʐ̩", "ʂɻ̩", "ʂʅ"),
+    "ri": ("ʐ̩", "ɻ̩", "ʐʅ", "ɻʅ"),
+    "zi": ("tsz̩", "tsɹ̩", "tsɿ"),
+    "ci": ("tsʰz̩", "tsʰɹ̩", "tsʰɿ"),
+    "si": ("sz̩", "sɹ̩", "sɿ"),
+    "yo": ("jo", "io"),
+    "m": ("m̩",),
+    "n": ("n̩",),
+    "ng": ("ŋ", "ŋ̩"),
+}
+_IPA_PINYIN_INITIALS = ("zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z", "c", "s")
+_IPA_TONE_LETTERS = {"˥": "1", "˧˥": "2", "˨˩˦": "3", "˥˩": "4"}
+_IPA_TONE_SUPERSCRIPTS = {"¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁰": "5"}
+_IPA_TONE_LETTER_CHARS = "˥˦˧˨˩"
+_IPA_SYLLABLE_MAX = 8
+# 折叠归一化：输入与表项共用，保证两侧一致
+_IPA_FOLD_MAP = {
+    "ɑ": "a", "ɪ": "i", "ʊ": "u", "ʈ": "t", "ɖ": "d",
+    "ü": "y", "v": "y", "Ü": "y",
+    "ɤ": "ə",  # 单元音 e 常被写成 ɤ，eng/en 里也常见混写，统一折叠到 ə
+}
+_IPA_SKIP_CHARS = set("ː:ˈˌˑ ̯̠̘̪̆̃ͅ")  # 长度/重音/弱化等记号，忽略
+_ipa_lock = threading.Lock()
+_ipa_loaded = False
+_ipa_to_pinyin: dict[str, str] = {}  # 折叠后的 IPA 音节串 -> 拼音基础音节
+
+
+def _ipa_fold_letter(ch: str) -> str:
+    """单字符折叠：近似音变体归一到表内规范形。"""
+    return _IPA_FOLD_MAP.get(ch, ch)
+
+
+def _ipa_fold_string(text: str) -> str:
+    """把（表项或用户输入的）IPA 串折叠成规范字母序列（忽略分隔符差异）。"""
+    out: list[str] = []
+    for raw in text:
+        for ch in unicodedata.normalize("NFD", raw):
+            if ch in ("̄", "́", "̌", "̀"):  # 声调附加符号：表项不带，跳过
+                continue
+            if ch == "̈":  # 分音符：ü -> y
+                if out and out[-1] == "u":
+                    out[-1] = "y"
+                continue
+            if ch == "̯":  # 非音节记号：忽略（aɪ̯ -> ai 已由 ɪ 折叠处理）
+                continue
+            if ch == "˞":  # 卷舌钩：ə+˞ -> ɚ
+                if out and out[-1] == "ə":
+                    out[-1] = "ɚ"
+                else:
+                    out.append(ch)
+                continue
+            if ch in _IPA_SKIP_CHARS or ch.isspace():
+                continue
+            if ch.isalpha():
+                out.append(_ipa_fold_letter(ch if ch.islower() else ch.lower()))
+            else:
+                out.append(ch)  # ʰ ̩ ɕ 等（非 isalpha 的修饰/组合记号按原样保留）
+    return "".join(out)
+
+
+def _decompose_pinyin_base(base: str) -> tuple[str, str] | None:
+    """拼音基础音节 -> (声母, 韵母)。零声母返回 ("", 韵母)。无法分解返回 None。"""
+    if base in _IPA_SPECIALS:
+        return None  # 特殊音节走整表
+    for initial in _IPA_PINYIN_INITIALS:
+        if base.startswith(initial):
+            final = base[len(initial):]
+            if initial in ("j", "q", "x") and final.startswith("u"):
+                final = "v" + final[1:]  # ju -> jü
+            if final in _IPA_FINALS:
+                return initial, final
+    if base.startswith("y"):
+        rest = base[1:]
+        if rest.startswith("u"):
+            final = "v" + rest[1:]  # yu/yue/yuan/yun
+        elif rest.startswith("i"):
+            final = rest[1:]  # yi -> i
+        elif rest == "":
+            final = "i"
+        else:
+            final = "i" + rest  # ya -> ia
+        return ("", final) if final in _IPA_FINALS else None
+    if base.startswith("w"):
+        rest = base[1:]
+        if rest.startswith("u"):
+            final = rest[1:]  # wu -> u
+        elif rest == "":
+            final = "u"
+        else:
+            final = "u" + rest  # wa -> ua
+        return ("", final) if final in _IPA_FINALS else None
+    return ("", base) if base in _IPA_FINALS else None
+
+
+def _ipa_load() -> None:
+    """从拼音基础音节表生成 IPA -> 拼音 反查表（折叠归一后保证唯一）。"""
+    global _ipa_loaded, _ipa_to_pinyin
+    with _ipa_lock:
+        if _ipa_loaded:
+            return
+        _pinyin_load()
+        collisions: list[str] = []
+        table: dict[str, str] = {}
+        for base in sorted(_pinyin_bases):
+            entries: list[str] = []
+            if base in _IPA_SPECIALS:
+                entries.extend(_IPA_SPECIALS[base])
+            else:
+                decomposed = _decompose_pinyin_base(base)
+                if decomposed is None:
+                    continue
+                initial, final = decomposed
+                initials = _IPA_INITIALS.get(initial, ("",)) if initial else ("",)
+                finals = _IPA_FINALS[final]
+                entries = [i + f for i in initials for f in finals]
+            for entry in entries:
+                key = _ipa_fold_string(entry)
+                if not key:
+                    continue
+                if key in table and table[key] != base:
+                    collisions.append(f"{key}:{table[key]}/{base}")
+                    continue
+                table[key] = base
+        if collisions:
+            print(f"[IPA] 歧义音节变体已忽略：{'; '.join(collisions[:10])}", flush=True)
+        _ipa_to_pinyin = table
+        _ipa_loaded = True
+
+
+def _decode_ipa_chunk(chunk: str) -> tuple[str, dict[int, str], dict[int, str]]:
+    """IPA 连续段 -> (折叠字母串, 声调符号位置->声调, 调符/数字声调的音节末位置->声调)。
+
+    Chao 调符、上标数字、普通数字都充当强制音节边界（同拼音模式）。
+    """
+    plains: list[str] = []
+    marks: dict[int, str] = {}
+    digit_tones: dict[int, str] = {}
+    tone_run = ""
+    for raw in chunk:
+        if raw in _IPA_TONE_LETTER_CHARS:
+            tone_run += raw
+            if len(tone_run) > 3:
+                raise RuntimeError(f"声调调符序列“{tone_run}”过长，无法识别。")
+            continue
+        if tone_run:
+            tone = _IPA_TONE_LETTERS.get(tone_run)
+            if tone is None:
+                raise RuntimeError(
+                    f"声调调符“{tone_run}”无法识别；支持 ˥(1) ˧˥(2) ˨˩˦(3) ˥˩(4)。"
+                )
+            if not plains:
+                raise RuntimeError("声调调符前面没有音节。")
+            digit_tones[len(plains)] = tone
+            tone_run = ""
+        if raw in _IPA_TONE_SUPERSCRIPTS or raw.isdigit():
+            if not plains:
+                raise RuntimeError(f"声调标记“{raw}”前面没有音节字母。")
+            digit = _IPA_TONE_SUPERSCRIPTS.get(raw, "5" if raw == "0" else raw)
+            if digit not in "12345":
+                raise RuntimeError(f"声调数字只能是 1-5（轻声可写 5 或 0）。")
+            end = len(plains)
+            if end in digit_tones:
+                raise RuntimeError("同一音节结尾写了多个声调标记。")
+            digit_tones[end] = digit
+            continue
+        base_letters: list[str] = []
+        recognized = False
+        tone = ""
+        for ch in unicodedata.normalize("NFD", raw):
+            if ch in _TONE_MARKS:
+                tone = _TONE_MARKS[ch]
+                recognized = True
+            elif ch == "̈":
+                if base_letters and base_letters[-1] == "u":
+                    base_letters[-1] = "y"
+                recognized = True
+            elif ch in _IPA_SKIP_CHARS:
+                recognized = True
+            elif ch == "˞":
+                if base_letters and base_letters[-1] == "ə":
+                    base_letters[-1] = "ɚ"
+                else:
+                    base_letters.append(ch)
+                recognized = True
+            elif ch.isalpha():
+                base_letters.append(_ipa_fold_letter(ch if ch.islower() else ch.lower()))
+                recognized = True
+            else:
+                base_letters.append(ch)
+                recognized = True
+        if not base_letters and not recognized:
+            raise RuntimeError(f"IPA 记音里包含无法识别的字符“{raw}”。")
+        if tone:
+            marks[len(plains)] = tone
+        plains.extend(base_letters)
+    if tone_run:
+        tone = _IPA_TONE_LETTERS.get(tone_run)
+        if tone is None:
+            raise RuntimeError(f"声调调符“{tone_run}”无法识别；支持 ˥(1) ˧˥(2) ˨˩˦(3) ˥˩(4)。")
+        digit_tones[len(plains)] = tone
+    return "".join(plains), marks, digit_tones
+
+
+def _segment_ipa(
+    plains: str, marks: dict[int, str], digit_tones: dict[int, str]
+) -> list[tuple[str, str]]:
+    """把折叠后的 IPA 字母串切分成音节。返回 (IPA 音节, 声调或空) 列表（最长匹配优先）。"""
+    total = len(plains)
+    forced = sorted(digit_tones)
+
+    def next_boundary(start: int) -> int:
+        for pos in forced:
+            if pos > start:
+                return pos
+        return total
+
+    def tone_of(start: int, end: int) -> str:
+        inner = {marks[pos] for pos in marks if start <= pos < end}
+        if len(inner) > 1:
+            raise RuntimeError(f"“{plains[start:end]}”里出现了两种不同的声调符号。")
+        tone = next(iter(inner), "")
+        digit = digit_tones.get(end, "")
+        if tone and digit and tone != digit:
+            raise RuntimeError(
+                f"音节“{plains[start:end]}”的声调符号（{tone}）和数字（{digit}）不一致。"
+            )
+        return digit or tone
+
+    failed: set[int] = set()
+
+    def recurse(start: int) -> list[tuple[str, str]] | None:
+        if start == total:
+            return []
+        if start in failed:
+            return None
+        limit = next_boundary(start)
+        for length in range(min(_IPA_SYLLABLE_MAX, limit - start), 0, -1):
+            end = start + length
+            candidate = plains[start:end]
+            if candidate not in _ipa_to_pinyin:
+                continue
+            try:
+                tone = tone_of(start, end)
+            except RuntimeError:
+                raise
+            rest = recurse(end)
+            if rest is not None:
+                return [(candidate, tone), *rest]
+        failed.add(start)
+        return None
+
+    items = recurse(0)
+    if items is None:
+        raise RuntimeError(
+            f"“{plains}”无法切分成普通话音节；请检查记音是否在普通话音系内，或在音节之间加空格。"
+        )
+    return items
+
+
+def ipa_to_pinyin(text: str) -> tuple[str, list[dict[str, object]], list[str]]:
+    """把 IPA 记音转换成带声调数字的拼音串，交给 convert_pinyin 复用同音字管线。"""
+    _ipa_load()
+    raw = str(text).strip()
+    if not raw:
+        raise RuntimeError("请输入 IPA 记音。")
+    syllables: list[str] = []
+    info: list[dict[str, object]] = []
+    errors: list[str] = []
+    buffer: list[str] = []
+
+    def flush() -> None:
+        if not buffer:
+            return
+        chunk = "".join(buffer)
+        buffer.clear()
+        try:
+            plains, marks, digit_tones = _decode_ipa_chunk(chunk)
+            for ipa_syllable, tone in _segment_ipa(plains, marks, digit_tones):
+                base = _ipa_to_pinyin[ipa_syllable]
+                syllables.append(base + tone)
+                info.append(
+                    {
+                        "ipa": ipa_syllable,
+                        "pinyin": base + (tone or ""),
+                        "tone": tone,
+                        "explicit": bool(tone),
+                    }
+                )
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
+    for ch in raw:
+        # 注意：撇号不作分隔符——它是送气别名（p' = pʰ）
+        if ch.isspace() or ch in ".|·":
+            flush()
+        elif ch in _PINYIN_PUNCT:
+            flush()
+            syllables.append(ch)
+        else:
+            buffer.append(ch)
+    flush()
+
+    if not info and not errors:
+        errors.append("没有识别到任何 IPA 音节。")
+    if len(info) > PINYIN_MAX_SYLLABLES:
+        errors.append(f"音节太多（{len(info)} 个），请控制在 {PINYIN_MAX_SYLLABLES} 个以内。")
+    return " ".join(syllables), info, errors
+
+
+def ipa_preview(payload: dict[str, object]) -> dict[str, object]:
+    """IPA 输入的实时预览：IPA -> 拼音 -> 同音汉字。"""
+    text = str(payload.get("text", ""))[: PINYIN_MAX_CHARS * 2]
+    pinyin_text, info, errors = ipa_to_pinyin(text)
+    chars = ""
+    char_info: list[dict[str, object]] = []
+    if not errors:
+        chars, char_info, _errors = convert_pinyin(pinyin_text)
+        for item, resolved in zip(info, char_info):
+            item["char"] = resolved.get("char", "")
+    else:
+        try:
+            chars, char_info, _ignored = convert_pinyin(pinyin_text)
+            for item, resolved in zip(info, char_info):
+                item["char"] = resolved.get("char", "")
+        except RuntimeError:
+            pass
+    return {"chars": chars, "pinyin": pinyin_text, "syllables": info, "errors": errors[:8]}
+
+
 class ChatTTSEngine:
     """Lazily load ChatTTS and persist a stable set of speaker embeddings."""
 
@@ -699,10 +1106,19 @@ class ChatTTSEngine:
         self._speakers = {card["id"]: by_id[card["id"]] for card in VOICE_CARDS}
 
     def synthesize(self, text: str, rate: int, voice: object, mode: str = "zh"):
-        # 拼音模式先转换（不加载模型即可报出拼写错误），再合成同音汉字串。
+        # 拼音/IPA 模式先转换（不加载模型即可报出拼写错误），再合成同音汉字串。
         converted = ""
         if mode == "pinyin":
             converted, _info, errors = convert_pinyin(text)
+            if errors:
+                detail = "；".join(str(e).rstrip("。") for e in errors[:3])
+                raise RuntimeError(detail + ("等。" if len(errors) > 3 else "。"))
+        elif mode == "ipa":
+            pinyin_text, _ipa_info, ipa_errors = ipa_to_pinyin(text)
+            if ipa_errors:
+                detail = "；".join(str(e).rstrip("。") for e in ipa_errors[:3])
+                raise RuntimeError(detail + ("等。" if len(ipa_errors) > 3 else "。"))
+            converted, _info, errors = convert_pinyin(pinyin_text)
             if errors:
                 detail = "；".join(str(e).rstrip("。") for e in errors[:3])
                 raise RuntimeError(detail + ("等。" if len(errors) > 3 else "。"))
@@ -715,7 +1131,8 @@ class ChatTTSEngine:
             assert self._chat is not None and self._chattts is not None
             assert self._numpy is not None
             speed = int(clamp(rate, 1, 9, 5))
-            final_text = converted if mode == "pinyin" else text
+            phonetic = mode in ("pinyin", "ipa")
+            final_text = converted if phonetic else text
             seed_text = f"{label}\0{mode}\0{final_text}\0{rate}".encode("utf-8")
             seed = int(hashlib.sha256(seed_text).hexdigest()[:8], 16)
             infer_params = self._chattts.Chat.InferCodeParams(
@@ -734,9 +1151,9 @@ class ChatTTSEngine:
                     final_text,
                     params_infer_code=infer_params,
                     lang="zh",
-                    # 拼音模式必须跳过 refine_text，否则模型可能把生造音节串
-                    # 改写成读音相近的正常词语，失去逐音节控制。
-                    skip_refine_text=(mode == "pinyin"),
+                    # 拼音/IPA 模式必须跳过 refine_text，否则模型可能把生造
+                    # 音节串改写成读音相近的正常词语，失去逐音节控制。
+                    skip_refine_text=phonetic,
                     do_text_normalization=True,
                     do_homophone_replacement=True,
                 )
@@ -764,7 +1181,8 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     text = str(params.get("chinese", "你好，我想设计一种自然、温暖、清晰的声音。"))[:2400].strip()
     if not text:
         raise RuntimeError("请输入要朗读的文本。")
-    text_mode = "pinyin" if str(params.get("text_mode", "zh")) == "pinyin" else "zh"
+    raw_mode = str(params.get("text_mode", "zh"))
+    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa") else "zh"
     voice_id = str(params.get("base_voice", "speaker_001"))
     base_voice = (
         {"kind": "custom", "id": voice_id}
@@ -867,7 +1285,8 @@ def preview_audio(payload: dict[str, object]) -> bytes:
     text = str(payload.get("text", default_text)).strip()[:600]
     if not text:
         text = default_text
-    text_mode = "pinyin" if str(payload.get("text_mode", "zh")) == "pinyin" else "zh"
+    raw_mode = str(payload.get("text_mode", "zh"))
+    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa") else "zh"
     rate = int(clamp(payload.get("rate"), 1, 9, 5))
     voice = payload.get("voice")
     pcm, sample_rate = ENGINE.synthesize(text, rate, voice, mode=text_mode)
@@ -1259,6 +1678,10 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/pinyin/preview":
                 payload = self._read_json_body()
                 self._send_json(200, pinyin_preview(payload))
+                return
+            if route == "/api/ipa/preview":
+                payload = self._read_json_body()
+                self._send_json(200, ipa_preview(payload))
                 return
             if route == "/api/speaker/save":
                 payload = self._read_json_body()

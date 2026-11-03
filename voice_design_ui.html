@@ -10,7 +10,7 @@
 .grid{display:grid;grid-template-columns:minmax(330px,.88fr) minmax(500px,1.4fr);gap:18px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.section:first-child{border-top:0;padding-top:0;margin-top:0}
 .top-actions{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0 12px}.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.toolbar select{flex:1;min-width:170px}button,select,textarea{font:inherit}button{border:1px solid #d9b99b;border-radius:9px;padding:9px 12px;color:var(--text);background:#fff7ec;cursor:pointer}button:hover{background:#f9eadb}button.primary{background:var(--accent);border-color:var(--accent-dark);color:#fff}button.primary:hover{background:var(--accent-dark)}button.good{background:var(--green);border-color:var(--green-dark);color:#fff}button:disabled{opacity:.5;cursor:wait}select,textarea{width:100%;background:#fffaf3;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 10px}textarea{min-height:110px;resize:vertical}label{display:block;margin:11px 0 5px}label span{float:right;color:var(--muted);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--accent)}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .status{min-height:25px;color:var(--muted);background:#fff7ec;border-radius:8px;padding:7px 9px}.file-path{margin-top:7px;min-height:22px;color:var(--green-dark);font-size:13px;word-break:break-all}.file-path a{color:var(--accent-dark)}audio{width:100%;margin:8px 0 12px}.small{font-size:12px;color:var(--muted)}.hint{background:#fff2df;border:1px solid #f0d7b5;border-radius:10px;padding:10px 12px;color:#795f4b}.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;color:var(--muted);font-size:12px}
-.history{max-height:650px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fffaf3}.history-row{padding:12px;border-bottom:1px solid var(--line)}.history-row:last-child{border-bottom:0}.history-head{display:flex;gap:8px;align-items:center}.history-name{font-weight:650;flex:1}.badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#f0ded0;color:var(--accent-dark)}.history-meta{font-size:12px;color:var(--muted);margin:3px 0 7px}.history-row audio{margin:4px 0}.history-actions{display:flex;flex-wrap:wrap;gap:6px}.history-actions button{font-size:12px;padding:5px 8px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compare-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fffaf3}.compare-card strong{display:block;margin-bottom:3px}.compare-card audio{margin:5px 0 7px}.empty{padding:20px;color:var(--muted);text-align:center}.history-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:9px 0}.history-tools select{width:auto;min-width:125px}.count{color:var(--muted);font-size:13px;margin-left:auto}
+.history{max-height:650px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fffaf3}.ipa-kbd{border:1px solid var(--line);border-radius:12px;background:#fffaf3;padding:10px;margin-top:8px}.kbd-group{margin-bottom:8px}.kbd-group:last-child{margin-bottom:0}.kbd-title{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.kbd-keys{display:flex;flex-wrap:wrap;gap:4px}.kbd{min-width:42px;min-height:40px;padding:3px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;font-size:15px;font-family:inherit}.kbd small{font-size:10px;color:var(--muted)}.history-row{padding:12px;border-bottom:1px solid var(--line)}.history-row:last-child{border-bottom:0}.history-head{display:flex;gap:8px;align-items:center}.history-name{font-weight:650;flex:1}.badge{font-size:11px;border-radius:999px;padding:2px 7px;background:#f0ded0;color:var(--accent-dark)}.history-meta{font-size:12px;color:var(--muted);margin:3px 0 7px}.history-row audio{margin:4px 0}.history-actions{display:flex;flex-wrap:wrap;gap:6px}.history-actions button{font-size:12px;padding:5px 8px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compare-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fffaf3}.compare-card strong{display:block;margin-bottom:3px}.compare-card audio{margin:5px 0 7px}.empty{padding:20px;color:var(--muted);text-align:center}.history-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:9px 0}.history-tools select{width:auto;min-width:125px}.count{color:var(--muted);font-size:13px;margin-left:auto}
 @media(max-width:860px){.grid{grid-template-columns:1fr}}@media(max-width:600px){.twocol,.compare-grid{grid-template-columns:1fr}.count{width:100%;margin-left:0}}
 </style>
 </head>
@@ -23,8 +23,103 @@
 <div class="hint">操作顺序：①选择普通话音色并输入文本 ②生成试听 ③在历史列表中收藏或选择 A/B ④将满意版本设为下一轮起点。音色编号固定，具体声线特点请以试听为准。</div>
 <div class="section"><h2>预设</h2><div class="toolbar"><button id="save">保存当前预设</button><select id="preset_select"><option value="">选择已保存预设</option></select><button id="load">加载预设</button></div><div class="small">预设保存参数；历史记录还会保存对应的试听音频。</div></div>
 <div class="section"><h2>文本与普通话音色</h2><div class="twocol"><label>固定音色（共 60 种）<select id="base_voice"><option value="speaker_001">普通话音色 01</option></select></label><label>语速等级 <span data-value="rate"></span><input data-param="rate" id="rate" type="range" min="1" max="9" step="1" value="5"></label></div><div class="small" id="engine_status">模型尚未加载；首次生成会自动下载并初始化。</div><label>朗读文本（中文或拼音）<textarea id="chinese">你好，我想设计一种自然、温暖、清晰的声音。</textarea></label>
-<div class="toolbar" style="margin-top:8px"><span class="small">输入模式</span><select id="text_mode" style="width:auto;min-width:110px"><option value="zh">中文</option><option value="pinyin">拼音（任意音节）</option></select><span class="small" id="pinyin_info" style="flex:1;min-width:200px"></span></div>
-<div class="hint" id="pinyin_help" style="display:none;margin-top:8px">拼音模式：音节+声调数字（1-4，轻声 5；省略则按最常见读音），如 <code>ni3 hao3 shi4jie4</code>；也支持声调符号 <code>nǐ hǎo</code>；ü 写 <code>v</code>（<code>lv3</code> <code>nv3</code>）；音节间加空格最稳，不加则按最长匹配切分（<code>xian</code>→先，<code>xi'an</code>→西安）；儿化如 <code>huar1</code>。每个音节会替换成同音汉字逐字朗读，因此能发出任意普通话音节组合（生造词、非常规声调搭配都行）；仅限普通话音系。实际朗读的汉字以下方“将朗读”预览为准。</div></div>
+<div class="toolbar" style="margin-top:8px"><span class="small">输入模式</span><select id="text_mode" style="width:auto;min-width:130px"><option value="zh">中文</option><option value="pinyin">拼音（任意音节）</option><option value="ipa">国际音标（IPA）</option></select><span class="small" id="pinyin_info" style="flex:1;min-width:200px"></span></div>
+<div class="hint" id="pinyin_help" style="display:none;margin-top:8px">拼音模式：音节+声调数字（1-4，轻声 5；省略则按最常见读音），如 <code>ni3 hao3 shi4jie4</code>；也支持声调符号 <code>nǐ hǎo</code>；ü 写 <code>v</code>（<code>lv3</code> <code>nv3</code>）；音节间加空格最稳，不加则按最长匹配切分（<code>xian</code>→先，<code>xi'an</code>→西安）；儿化如 <code>huar1</code>。每个音节会替换成同音汉字逐字朗读，因此能发出任意普通话音节组合（生造词、非常规声调搭配都行）；仅限普通话音系。实际朗读的汉字以下方“将朗读”预览为准。</div>
+<div class="hint" id="ipa_help" style="display:none;margin-top:8px">国际音标模式（普通话宽式记音，配下方软键盘输入）：<code>p</code>=拼音 b（不送气）、<code>pʰ</code>=拼音 p（送气），t/k/ts/tʂ/tɕ 同理；韵母 <code>ə</code>=拼音 e（写 ɤ 亦可）、<code>ɛ</code>=ie/üe 的 ê、<code>y</code>=ü、<code>au</code>=ao、<code>ən</code>=en、<code>aŋ</code>=ang、<code>əŋ</code>=eng、<code>ɚ</code>=er、<code>ɿ</code>=z/c/s 组的 i、<code>ʅ</code>=zh/ch/sh/r 组的 i；声调可写调符 <code>˥ ˧˥ ˨˩˦ ˥˩</code>、上标 <code>¹²³⁴⁵</code> 或数字 <code>1-5</code>（轻声 5，不标取默认）。例：<code>tʂəŋ¹kwo³</code>＝中国。仅限普通话音系（音系外符号会报错）；每个音节最终替换为同音汉字朗读，以下方“将朗读”预览为准。</div>
+<div class="ipa-kbd" id="ipa_keyboard" style="display:none">
+<div class="kbd-group"><span class="kbd-title">声母 · 塞音/塞擦音（左列不送气 = 拼音 b/d/g/z/zh/j；右列送气 = 拼音 p/t/k/c/ch/q）</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i="p">p<small>b</small></button>
+<button type="button" class="kbd" data-i="t">t<small>d</small></button>
+<button type="button" class="kbd" data-i="k">k<small>g</small></button>
+<button type="button" class="kbd" data-i="ts">ts<small>z</small></button>
+<button type="button" class="kbd" data-i="tʂ">tʂ<small>zh</small></button>
+<button type="button" class="kbd" data-i="tɕ">tɕ<small>j</small></button>
+<button type="button" class="kbd" data-i="pʰ">pʰ<small>p</small></button>
+<button type="button" class="kbd" data-i="tʰ">tʰ<small>t</small></button>
+<button type="button" class="kbd" data-i="kʰ">kʰ<small>k</small></button>
+<button type="button" class="kbd" data-i="tsʰ">tsʰ<small>c</small></button>
+<button type="button" class="kbd" data-i="tʂʰ">tʂʰ<small>ch</small></button>
+<button type="button" class="kbd" data-i="tɕʰ">tɕʰ<small>q</small></button>
+</div></div>
+<div class="kbd-group"><span class="kbd-title">声母 · 擦音/鼻音/边音</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i="f">f<small>f</small></button>
+<button type="button" class="kbd" data-i="s">s<small>s</small></button>
+<button type="button" class="kbd" data-i="ʂ">ʂ<small>sh</small></button>
+<button type="button" class="kbd" data-i="ɕ">ɕ<small>x</small></button>
+<button type="button" class="kbd" data-i="x">x<small>h</small></button>
+<button type="button" class="kbd" data-i="ʐ">ʐ<small>r</small></button>
+<button type="button" class="kbd" data-i="ɻ">ɻ<small>r</small></button>
+<button type="button" class="kbd" data-i="m">m<small>m</small></button>
+<button type="button" class="kbd" data-i="n">n<small>n</small></button>
+<button type="button" class="kbd" data-i="l">l<small>l</small></button>
+</div></div>
+<div class="kbd-group"><span class="kbd-title">单元音 / 舌尖元音 / 介音</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i="a">a<small>a</small></button>
+<button type="button" class="kbd" data-i="o">o<small>o</small></button>
+<button type="button" class="kbd" data-i="ə">ə<small>e</small></button>
+<button type="button" class="kbd" data-i="ɛ">ɛ<small>ê</small></button>
+<button type="button" class="kbd" data-i="i">i<small>i</small></button>
+<button type="button" class="kbd" data-i="u">u<small>u</small></button>
+<button type="button" class="kbd" data-i="y">y<small>ü</small></button>
+<button type="button" class="kbd" data-i="ɚ">ɚ<small>er</small></button>
+<button type="button" class="kbd" data-i="ɿ">ɿ<small>i(z组)</small></button>
+<button type="button" class="kbd" data-i="ʅ">ʅ<small>i(zh组)</small></button>
+<button type="button" class="kbd" data-i="j">j<small>介i</small></button>
+<button type="button" class="kbd" data-i="w">w<small>介u</small></button>
+<button type="button" class="kbd" data-i="ɥ">ɥ<small>介ü</small></button>
+</div></div>
+<div class="kbd-group"><span class="kbd-title">复韵母 / 鼻韵母（整体插入）</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i="ai">ai<small>ai</small></button>
+<button type="button" class="kbd" data-i="ei">ei<small>ei</small></button>
+<button type="button" class="kbd" data-i="au">au<small>ao</small></button>
+<button type="button" class="kbd" data-i="ou">ou<small>ou</small></button>
+<button type="button" class="kbd" data-i="an">an<small>an</small></button>
+<button type="button" class="kbd" data-i="ən">ən<small>en</small></button>
+<button type="button" class="kbd" data-i="aŋ">aŋ<small>ang</small></button>
+<button type="button" class="kbd" data-i="əŋ">əŋ<small>eng</small></button>
+<button type="button" class="kbd" data-i="ja">ja<small>ia</small></button>
+<button type="button" class="kbd" data-i="jɛ">jɛ<small>ie</small></button>
+<button type="button" class="kbd" data-i="jau">jau<small>iao</small></button>
+<button type="button" class="kbd" data-i="jou">jou<small>iu</small></button>
+<button type="button" class="kbd" data-i="jɛn">jɛn<small>ian</small></button>
+<button type="button" class="kbd" data-i="jaŋ">jaŋ<small>iang</small></button>
+<button type="button" class="kbd" data-i="iŋ">iŋ<small>ing</small></button>
+<button type="button" class="kbd" data-i="juŋ">juŋ<small>iong</small></button>
+<button type="button" class="kbd" data-i="wa">wa<small>ua</small></button>
+<button type="button" class="kbd" data-i="wo">wo<small>uo</small></button>
+<button type="button" class="kbd" data-i="wai">wai<small>uai</small></button>
+<button type="button" class="kbd" data-i="wei">wei<small>ui</small></button>
+<button type="button" class="kbd" data-i="wan">wan<small>uan</small></button>
+<button type="button" class="kbd" data-i="wən">wən<small>un</small></button>
+<button type="button" class="kbd" data-i="waŋ">waŋ<small>uang</small></button>
+<button type="button" class="kbd" data-i="ɥɛ">ɥɛ<small>üe</small></button>
+<button type="button" class="kbd" data-i="ɥɛn">ɥɛn<small>üan</small></button>
+<button type="button" class="kbd" data-i="yn">yn<small>ün</small></button>
+</div></div>
+<div class="kbd-group"><span class="kbd-title">声调（调符 / 数字）</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i="˥">˥<small>一声</small></button>
+<button type="button" class="kbd" data-i="˧˥">˧˥<small>二声</small></button>
+<button type="button" class="kbd" data-i="˨˩˦">˨˩˦<small>三声</small></button>
+<button type="button" class="kbd" data-i="˥˩">˥˩<small>四声</small></button>
+<button type="button" class="kbd" data-i="⁵">⁵<small>轻声</small></button>
+<button type="button" class="kbd" data-i="1">1<small>一声</small></button>
+<button type="button" class="kbd" data-i="2">2<small>二声</small></button>
+<button type="button" class="kbd" data-i="3">3<small>三声</small></button>
+<button type="button" class="kbd" data-i="4">4<small>四声</small></button>
+<button type="button" class="kbd" data-i="5">5<small>轻声</small></button>
+</div></div>
+<div class="kbd-group"><span class="kbd-title">编辑</span>
+<div class="kbd-keys">
+<button type="button" class="kbd" data-i=" ">空格<small>分隔</small></button>
+<button type="button" class="kbd" data-i="·">·<small>分隔</small></button>
+<button type="button" class="kbd" id="kbd_backspace">⌫<small>退格</small></button>
+</div></div>
+</div></div>
 <div class="section"><h2>语气与韵律</h2><label>音高 <span data-value="pitch"></span><input data-param="pitch" id="pitch" type="range" min="-8" max="8" step="0.1" value="0"></label><label>音高起伏 <span data-value="pitch_variation"></span><input data-param="pitch_variation" id="pitch_variation" type="range" min="0" max="100" step="1" value="0"></label><label>整体音量 <span data-value="volume"></span><input data-param="volume" id="volume" type="range" min="-8" max="8" step="0.1" value="0"></label></div>
 <div class="section"><h2>音色结构</h2><label>明亮度 <span data-value="brightness"></span><input data-param="brightness" id="brightness" type="range" min="-8" max="8" step="0.1" value="0"></label><label>温暖度 <span data-value="warmth"></span><input data-param="warmth" id="warmth" type="range" min="-8" max="8" step="0.1" value="0"></label><label>胸腔/厚度 <span data-value="body"></span><input data-param="body" id="body" type="range" min="-8" max="8" step="0.1" value="0"></label><label>鼻音 <span data-value="nasality"></span><input data-param="nasality" id="nasality" type="range" min="0" max="8" step="0.1" value="0"></label><label>声带张力 <span data-value="tension"></span><input data-param="tension" id="tension" type="range" min="0" max="8" step="0.1" value="0"></label><label>清晰度 <span data-value="clarity"></span><input data-param="clarity" id="clarity" type="range" min="0" max="8" step="0.1" value="0"></label><label>存在感 <span data-value="presence"></span><input data-param="presence" id="presence" type="range" min="0" max="8" step="0.1" value="0"></label><label>空气感 <span data-value="air"></span><input data-param="air" id="air" type="range" min="0" max="8" step="0.1" value="0"></label><label>齿音 <span data-value="sibilance"></span><input data-param="sibilance" id="sibilance" type="range" min="-8" max="8" step="0.1" value="0"></label></div>
 <div class="section"><h2>质感与空间</h2><label>气声 <span data-value="breathiness"></span><input data-param="breathiness" id="breathiness" type="range" min="0" max="8" step="0.1" value="0"></label><label>粗糙度 <span data-value="roughness"></span><input data-param="roughness" id="roughness" type="range" min="0" max="8" step="0.1" value="0"></label><label>平滑度 <span data-value="smoothness"></span><input data-param="smoothness" id="smoothness" type="range" min="0" max="8" step="0.1" value="0"></label><label>压缩/稳定度 <span data-value="compression"></span><input data-param="compression" id="compression" type="range" min="0" max="8" step="0.1" value="0"></label><label>距离感 <span data-value="distance"></span><input data-param="distance" id="distance" type="range" min="0" max="100" step="1" value="0"></label><label>房间感 <span data-value="room"></span><input data-param="room" id="room" type="range" min="0" max="100" step="1" value="0"></label></div>
@@ -36,7 +131,7 @@
 <div class="section"><h2>当前参数</h2><div class="chips" id="chips"></div></div>
 </section></div></main>
 <script>
-const APP_VERSION='v1.2.261103-1';
+const APP_VERSION='v1.2.261103-2';
 document.getElementById('app_version').textContent=APP_VERSION;
 const ids=['pitch','pitch_variation','rate','volume','brightness','warmth','body','nasality','tension','clarity','presence','air','sibilance','breathiness','roughness','smoothness','compression','distance','room'];
 const labels={pitch:'音高',pitch_variation:'音高起伏',rate:'语速',volume:'音量',brightness:'明亮度',warmth:'温暖度',body:'厚度',nasality:'鼻音',tension:'声带张力',clarity:'清晰度',presence:'存在感',air:'空气感',sibilance:'齿音',breathiness:'气声',roughness:'粗糙度',smoothness:'平滑度',compression:'压缩',distance:'距离感',room:'房间感'};
@@ -52,19 +147,23 @@ function fmt(id,v){const unit=['pitch','brightness','warmth','body','sibilance',
 function refresh(){for(const id of ids)document.querySelector(`[data-value="${id}"]`).textContent=fmt(id,$(id).value);const p=params();$('chips').innerHTML=`<span class="chip">普通话音色：${voiceNames[p.base_voice]||p.base_voice}</span>`+ids.map(id=>`<span class="chip">${labels[id]}：${fmt(id,p[id])}</span>`).join('')}
 function recordUrl(r){if(!r.url)r.url=URL.createObjectURL(r.blob);return r.url}
 function formatTime(t){return new Date(t).toLocaleString()}
-function recordSummary(p){const oldVoice={flo:'旧基线 Flo',eddy:'旧基线 Eddy'};return `${p.text_mode==='pinyin'?'拼音输入 · ':''}${voiceNames[p.base_voice]||oldVoice[p.base_voice]||p.base_voice} · 音高 ${Number(p.pitch).toFixed(1)} · 明亮 ${Number(p.brightness).toFixed(1)} · 温暖 ${Number(p.warmth).toFixed(1)}`}
+function recordSummary(p){const oldVoice={flo:'旧基线 Flo',eddy:'旧基线 Eddy'};const tag=p.text_mode&&p.text_mode!=='zh'?`${modeLabel(p)}输入 · `:'';return `${tag}${voiceNames[p.base_voice]||oldVoice[p.base_voice]||p.base_voice} · 音高 ${Number(p.pitch).toFixed(1)} · 明亮 ${Number(p.brightness).toFixed(1)} · 温暖 ${Number(p.warmth).toFixed(1)}`}
 function useRecord(r){setParams(r.params);currentBlob=r.blob;currentUrl=recordUrl(r);$('current_audio').src=currentUrl;$('download').disabled=false;if(r.filePath){$('file_path').innerHTML=`文件已保存：<a href="/${r.filePath}" target="_blank">${r.filePath}</a>`}$('status').textContent=`已载入“${r.label}”，可从这里继续调整。`}
 function markCompare(slot,id){if(slot==='A')compareA=id;else compareB=id;updateCompare();renderHistory()}
 function updateCompare(){const a=historyRecords.find(r=>r.id===compareA),b=historyRecords.find(r=>r.id===compareB);$('compare_a_name').textContent=a?`A：${a.label}`:'A：未选择';$('compare_b_name').textContent=b?`B：${b.label}`:'B：未选择';$('compare_a_audio').src=a?recordUrl(a):'';$('compare_b_audio').src=b?recordUrl(b):'';$('use_a').disabled=!a;$('use_b').disabled=!b}
 function renderHistory(){const box=$('history'),filter=$('history_filter').value;box.innerHTML='';const visible=historyRecords.filter(r=>filter==='all'||r.favorite);$('history_count').textContent=`${visible.length} 条记录 / 共 ${historyRecords.length} 条`;if(!visible.length){box.innerHTML='<div class="empty">当前筛选下没有记录。</div>';updateCompare();return}for(const r of visible){const row=document.createElement('div');row.className='history-row';const head=document.createElement('div');head.className='history-head';const name=document.createElement('span');name.className='history-name';name.textContent=r.label;head.append(name);if(r.id===compareA){const badge=document.createElement('span');badge.className='badge';badge.textContent='A';head.append(badge)}if(r.id===compareB){const badge=document.createElement('span');badge.className='badge';badge.textContent='B';head.append(badge)}if(r.favorite){const badge=document.createElement('span');badge.className='badge';badge.textContent='已收藏';head.append(badge)}row.append(head);const meta=document.createElement('div');meta.className='history-meta';meta.textContent=`${formatTime(r.created)} · ${recordSummary(r.params)}`;row.append(meta);const audio=document.createElement('audio');audio.controls=true;audio.preload='none';audio.src=recordUrl(r);row.append(audio);const actions=document.createElement('div');actions.className='history-actions';const a=document.createElement('button');a.textContent=r.id===compareA?'取消 A':'设为 A';a.onclick=()=>markCompare('A',r.id===compareA?null:r.id);const b=document.createElement('button');b.textContent=r.id===compareB?'取消 B':'设为 B';b.onclick=()=>markCompare('B',r.id===compareB?null:r.id);const start=document.createElement('button');start.textContent='设为下一轮起点';start.onclick=()=>useRecord(r);const fav=document.createElement('button');fav.textContent=r.favorite?'取消收藏':'收藏';fav.onclick=async()=>{r.favorite=!r.favorite;await dbPut(r);renderHistory()};const del=document.createElement('button');del.textContent='删除';del.onclick=async()=>{if(!confirm(`删除“${r.label}”？`))return;await dbDelete(r.id);if(r.url)URL.revokeObjectURL(r.url);historyRecords=historyRecords.filter(x=>x.id!==r.id);if(compareA===r.id)compareA=null;if(compareB===r.id)compareB=null;renderHistory()};actions.append(a,b,start,fav,del);row.append(actions);box.append(row)}updateCompare()}
-async function addHistory(blob,p,filePath){const r={id:`${Date.now()}-${Math.random().toString(16).slice(2)}`,created:Date.now(),label:`${p.text_mode==='pinyin'?'拼音 ':'中文 '}迭代 ${new Date().toLocaleString()}`,params:p,blob,filePath:filePath||'',favorite:false};await dbPut(r);historyRecords.unshift(r);renderHistory()}
+async function addHistory(blob,p,filePath){const r={id:`${Date.now()}-${Math.random().toString(16).slice(2)}`,created:Date.now(),label:`${modeLabel(p)}迭代 ${new Date().toLocaleString()}`,params:p,blob,filePath:filePath||'',favorite:false};await dbPut(r);historyRecords.unshift(r);renderHistory()}
 async function render(){const btn=$('render');btn.disabled=true;const originalText=btn.textContent;btn.textContent='生成中…';const started=Date.now();$('status').textContent='正在生成；首次生成会下载并加载模型，请保持页面打开…';$('engine_status').textContent='正在初始化模型，首次需要联网下载；请稍候。';$('file_path').textContent='';const progressTimer=setInterval(()=>{const seconds=Math.floor((Date.now()-started)/1000);$('status').textContent=`正在生成，已等待 ${seconds} 秒；首次下载模型可能需要较长时间，请不要关闭页面。`},2000);try{const p=params();const res=await fetch('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});if(!res.ok){const e=await res.json().catch(()=>({error:`服务器返回 HTTP ${res.status}`}));throw new Error(e.error||`生成失败（HTTP ${res.status}）`)}const blob=await res.blob();previousBlob=currentBlob;if(previousBlob){previousUrl=URL.createObjectURL(previousBlob);$('previous_audio').src=previousUrl}currentBlob=blob;currentUrl=URL.createObjectURL(blob);$('current_audio').src=currentUrl;$('download').disabled=false;const filePath=res.headers.get('X-Voice-File')||'';if(filePath)$('file_path').innerHTML=`文件已保存：<a href="/${filePath}" target="_blank">${filePath}</a>`;await addHistory(blob,p,filePath);$('status').textContent='已生成并保存。正在播放；原始文件位于项目 outputs 文件夹。';$('engine_status').textContent='模型已就绪；60 个固定普通话音色可用。';$('current_audio').play().catch(()=>{$('status').textContent='已生成并保存。点击“当前声音”播放器中的播放键试听。'})}catch(e){$('status').textContent=`生成失败：${e.message}`;$('engine_status').textContent='模型暂不可用；再次点击“生成并试听”可重试模型加载。'}finally{clearInterval(progressTimer);btn.disabled=false;btn.textContent=originalText}}
 function download(){if(!currentBlob)return;const a=document.createElement('a');a.href=currentUrl;a.download='voice-design.wav';a.click()}
 function presetNames(){return Object.keys(localStorage).filter(k=>k.startsWith('voice-design:')).sort()}function refreshPresets(){const select=$('preset_select');select.replaceChildren(new Option('选择已保存预设',''));for(const key of presetNames())select.add(new Option(key.slice(13),key))}
 async function loadHistory(){historyRecords=(await dbGetAll()).sort((a,b)=>b.created-a.created);renderHistory()}
 async function initialize(){try{const response=await fetch('/api/voices');if(!response.ok)throw new Error('读取普通话音色列表失败');const data=await response.json();const select=$('base_voice');select.replaceChildren();for(const voice of data.voices){voiceNames[voice.id]=voice.name;select.add(new Option(voice.name,voice.id))}const customs=data.custom||[];for(const voice of customs){const label=`${voice.name}${voice.type==='smp'?'（提取）':''}`;voiceNames[voice.id]=label;select.add(new Option(label,voice.id))}if(customs.length)$('engine_status').textContent=`已加载 ${customs.length} 个自定义音色（来自音色实验室）；可在下拉列表底部选择。`;if(data.engine?.state==='未安装 ChatTTS')$('engine_status').textContent='当前 Python 环境缺少 ChatTTS；Windows 请双击 start.bat 自动安装，macOS 安装步骤见 README。';else if(data.engine?.state&&!customs.length)$('engine_status').textContent=`模型状态：${data.engine.state}；首次生成将自动下载模型。`;setParams(defaults);refreshPresets();await loadHistory()}catch(e){$('status').textContent=`初始化失败：${e.message}`}}
 let pinyinTimer=null;
-function pinyinCheck(){const mode=$('text_mode').value;$('pinyin_help').style.display=mode==='pinyin'?'':'none';if(mode!=='pinyin'){$('pinyin_info').textContent='';return}clearTimeout(pinyinTimer);const text=$('chinese').value.trim();if(!text){$('pinyin_info').textContent='';return}pinyinTimer=setTimeout(async()=>{try{const res=await fetch('/api/pinyin/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const data=await res.json();if(data.errors&&data.errors.length){$('pinyin_info').textContent='✗ '+data.errors[0]}else{$('pinyin_info').textContent=`将朗读：${data.chars}（${data.syllables.length} 音节）`}}catch(e){$('pinyin_info').textContent=''}},350)}
+function modeLabel(p){return p.text_mode==='pinyin'?'拼音':p.text_mode==='ipa'?'IPA':'中文'}
+function pinyinCheck(){const mode=$('text_mode').value;$('pinyin_help').style.display=mode==='pinyin'?'':'none';$('ipa_help').style.display=mode==='ipa'?'':'none';$('ipa_keyboard').style.display=mode==='ipa'?'':'none';if(mode==='zh'){$('pinyin_info').textContent='';return}clearTimeout(pinyinTimer);const text=$('chinese').value.trim();if(!text){$('pinyin_info').textContent='';return}pinyinTimer=setTimeout(async()=>{try{const url=mode==='ipa'?'/api/ipa/preview':'/api/pinyin/preview';const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const data=await res.json();if(data.errors&&data.errors.length){$('pinyin_info').textContent='✗ '+data.errors[0]}else{const py=data.pinyin?` · 拼音：${data.pinyin}`:'';$('pinyin_info').textContent=`将朗读：${data.chars}（${data.syllables.length} 音节）${py}`}}catch(e){$('pinyin_info').textContent=''}},350)}
+function kbdInsert(text){const ta=$('chinese');const s=ta.selectionStart==null?ta.value.length:ta.selectionStart;const e=ta.selectionEnd==null?s:ta.selectionEnd;ta.setRangeText(text,s,e,'end');ta.focus();ta.dispatchEvent(new Event('input',{bubbles:true}))}
+document.querySelectorAll('#ipa_keyboard [data-i]').forEach(b=>{b.onclick=()=>kbdInsert(b.dataset.i)});
+$('kbd_backspace').onclick=()=>{const ta=$('chinese');const s=ta.selectionStart==null?ta.value.length:ta.selectionStart;const e=ta.selectionEnd==null?s:ta.selectionEnd;if(e>s){ta.setRangeText('',s,e,'end')}else if(s>0){ta.setRangeText('',s-1,s,'end')}ta.focus();ta.dispatchEvent(new Event('input',{bubbles:true}))};
 $('text_mode').addEventListener('change',pinyinCheck);$('chinese').addEventListener('input',pinyinCheck);
 for(const id of ids)$(id).addEventListener('input',refresh);$('render').onclick=render;$('download').onclick=download;$('reset').onclick=()=>setParams(defaults);$('randomize').onclick=()=>{for(const id of ids){const el=$(id);if(id==='rate')continue;const span=Number(el.max)-Number(el.min);el.value=(Number(el.min)+Math.random()*span).toFixed(el.step<1?1:0)}const voices=$('base_voice').options;$('base_voice').selectedIndex=Math.floor(Math.random()*voices.length);refresh()};$('base_voice').addEventListener('change',refresh);$('save').onclick=()=>{const name=prompt('预设名称');if(!name||!name.trim())return;localStorage.setItem('voice-design:'+name.trim(),JSON.stringify(params()));refreshPresets();$('preset_select').value='voice-design:'+name.trim();$('status').textContent=`预设“${name.trim()}”已保存。`};$('load').onclick=()=>{const key=$('preset_select').value;if(key){setParams(JSON.parse(localStorage.getItem(key)));$('status').textContent='预设已加载，可以点击生成并试听。'}};$('history_filter').onchange=renderHistory;$('clear_history').onclick=async()=>{if(!confirm('删除全部未收藏记录？'))return;for(const r of historyRecords.filter(x=>!x.favorite))await dbDelete(r.id);historyRecords=historyRecords.filter(x=>x.favorite);if(compareA&&!historyRecords.some(r=>r.id===compareA))compareA=null;if(compareB&&!historyRecords.some(r=>r.id===compareB))compareB=null;renderHistory()};$('clear_all_history').onclick=async()=>{if(!confirm('清空全部历史记录？'))return;await dbClear();historyRecords=[];compareA=null;compareB=null;renderHistory()};$('use_a').onclick=()=>{const r=historyRecords.find(x=>x.id===compareA);if(r)useRecord(r)};$('use_b').onclick=()=>{const r=historyRecords.find(x=>x.id===compareB);if(r)useRecord(r)};initialize();
 </script>
