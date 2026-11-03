@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import threading
 import traceback
+import unicodedata
 import uuid
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -307,6 +308,248 @@ def run(command: list[str]) -> None:
         raise RuntimeError(detail)
 
 
+# ---------------------------------------------------------------- pinyin input
+# ChatTTS 的输入层是 BERT 中文字符 token（词表 21128，没有拼音/音素 token），
+# 因此“拼音输入”通过同音字映射实现：每个带调音节换成 assets/pinyin_syllables.json
+# 里的首选同音字，再交给模型逐字发音。映射表由 build_pinyin_map.py 用 pypinyin
+# 反查生成（候选字限定在模型词表内，优先“主读音匹配”和 ChatTTS 官方验证过读音的
+# 字）。合成时跳过 refine_text，避免模型把生造音节串改写成正常词语。
+
+PINYIN_FILE = ROOT / "assets" / "pinyin_syllables.json"
+ERHUA_CHAR = "儿"
+PINYIN_MAX_SYLLABLES = 400
+PINYIN_MAX_CHARS = 2400
+_PINYIN_PUNCT = "，,、。.；;：:！!？?…—-·~～"
+_TONE_MARKS = {"\u0304": "1", "\u0301": "2", "\u030c": "3", "\u0300": "4"}
+_pinyin_lock = threading.Lock()
+_pinyin_loaded = False
+_pinyin_syllables: dict[str, list[str]] = {}
+_pinyin_default_tone: dict[str, str] = {}
+_pinyin_bases: frozenset[str] = frozenset()
+
+
+def _pinyin_load() -> None:
+    global _pinyin_loaded, _pinyin_syllables, _pinyin_default_tone, _pinyin_bases
+    with _pinyin_lock:
+        if _pinyin_loaded:
+            return
+        if not PINYIN_FILE.exists():
+            raise RuntimeError(
+                "缺少拼音映射表 assets/pinyin_syllables.json；"
+                "请在项目目录运行 uv run --no-project --with pypinyin build_pinyin_map.py 生成。"
+            )
+        payload = json.loads(PINYIN_FILE.read_text(encoding="utf-8"))
+        syllables = payload.get("syllables")
+        defaults = payload.get("default_tone")
+        if not isinstance(syllables, dict) or not isinstance(defaults, dict) or not syllables:
+            raise RuntimeError("拼音映射表内容不完整，请重新生成。")
+        _pinyin_syllables = {str(k): [str(c) for c in v] for k, v in syllables.items()}
+        _pinyin_default_tone = {str(k): str(v) for k, v in defaults.items()}
+        _pinyin_bases = frozenset(key[:-1] for key in _pinyin_syllables)
+        _pinyin_loaded = True
+
+
+def _decode_pinyin_chunk(chunk: str) -> tuple[str, dict[int, str], dict[int, str]]:
+    """把一个连续段解码成 (小写字母串, 带调符号位置->声调, 数字声调的音节末位置->声调)。
+
+    支持三种写法：声调数字（ni3）、Unicode 声调符号（nǐ）、ü 写作 v/u:/ü。
+    数字声调同时充当强制音节边界（ni3hao3 -> ni|hao）。
+    """
+    plains: list[str] = []
+    marks: dict[int, str] = {}
+    digit_tones: dict[int, str] = {}
+    for raw in chunk:
+        if raw.isdigit():
+            end = len(plains)
+            if end == 0:
+                raise RuntimeError(f"声调数字“{raw}”前面没有音节字母。")
+            if end in digit_tones:
+                raise RuntimeError(f"音节“{''.join(plains)}”的结尾写了多个声调数字。")
+            digit = "5" if raw == "0" else raw
+            if digit not in "12345":
+                raise RuntimeError(f"声调数字只能是 1-5（轻声可写 5 或 0）。")
+            digit_tones[end] = digit
+            continue
+        base_letters: list[str] = []
+        tone = ""
+        for ch in unicodedata.normalize("NFD", raw):
+            if ch in _TONE_MARKS:
+                tone = _TONE_MARKS[ch]
+            elif ch == "\u0308":  # ü 的分音符
+                if base_letters and base_letters[-1] == "u":
+                    base_letters[-1] = "v"
+            elif ch.isascii() and ch.isalpha():
+                base_letters.append(ch.lower())
+            else:
+                raise RuntimeError(f"拼音里包含无法识别的字符“{raw}”。")
+        if not base_letters:
+            raise RuntimeError(f"拼音里包含无法识别的字符“{raw}”。")
+        if tone:
+            marks[len(plains)] = tone
+        plains.extend(base_letters)
+    return "".join(plains), marks, digit_tones
+
+
+def _segment_pinyin(
+    plains: str, marks: dict[int, str], digit_tones: dict[int, str]
+) -> list[tuple[str, str, bool]]:
+    """把字母串切成音节。返回 (基础音节, 声调或空, 是否儿化后缀) 列表。
+
+    规则：最长匹配优先（xian 优先于 xi+an）；数字声调位置是强制边界；
+    声调符号归属其所在音节；普通切分失败时尝试“音节+r”儿化（huar -> hua+儿）。
+    """
+    total = len(plains)
+    forced = sorted(digit_tones)
+
+    def next_boundary(start: int) -> int:
+        for pos in forced:
+            if pos > start:
+                return pos
+        return total
+
+    def tone_of(start: int, end: int) -> str:
+        inner = {marks[pos] for pos in marks if start <= pos < end}
+        if len(inner) > 1:
+            raise RuntimeError(f"“{plains[start:end]}”里出现了两种不同的声调符号。")
+        tone = next(iter(inner), "")
+        digit = digit_tones.get(end, "")
+        if tone and digit and tone != digit:
+            raise RuntimeError(
+                f"音节“{plains[start:end]}”的声调符号（{tone}）和数字（{digit}）不一致。"
+            )
+        return digit or tone
+
+    failed: set[int] = set()
+
+    def recurse(start: int) -> list[tuple[str, str, bool]] | None:
+        if start == total:
+            return []
+        if start in failed:
+            return None
+        limit = next_boundary(start)
+        span = plains[start:limit]
+        # 儿化解释优先：剩余段恰好是 基础音节 + "r"（huar -> hua+儿）。
+        # er 本身是音节，不适用；儿化必须优于普通切分，否则 huar 会被切成 hu+a+儿。
+        if (
+            len(span) >= 2
+            and span[-1] == "r"
+            and span not in _pinyin_bases
+            and span[:-1] in _pinyin_bases
+        ):
+            inner = {marks[pos] for pos in marks if start <= pos < limit - 1}
+            if len(inner) > 1:
+                raise RuntimeError(f"“{span}”里出现了两种不同的声调符号。")
+            mark_tone = next(iter(inner), "")
+            digit_tone = digit_tones.get(limit, "")
+            if mark_tone and digit_tone and mark_tone != digit_tone:
+                raise RuntimeError(
+                    f"音节“{span[:-1]}”的声调符号（{mark_tone}）和数字（{digit_tone}）不一致。"
+                )
+            rest = recurse(limit)
+            if rest is not None:
+                return [(span[:-1], digit_tone or mark_tone, False), ("r", "", True), *rest]
+        for length in range(min(6, limit - start), 0, -1):
+            end = start + length
+            base = plains[start:end]
+            if base not in _pinyin_bases:
+                continue
+            try:
+                tone = tone_of(start, end)
+            except RuntimeError:
+                raise  # 声调冲突无论怎么切都算输入错误
+            rest = recurse(end)
+            if rest is not None:
+                return [(base, tone, False), *rest]
+        failed.add(start)
+        return None
+
+    items = recurse(0)
+    if items is None:
+        raise RuntimeError(f"“{plains}”无法切分成有效音节；请在音节之间加空格，或检查拼写。")
+    return items
+
+
+def _resolve_syllable(base: str, tone: str) -> tuple[str, str]:
+    """确定最终声调并取首选同音字。未标声调时用映射表的默认声调（近似最常见读音）。"""
+    if not tone:
+        tone = _pinyin_default_tone.get(base, "")
+    entry = _pinyin_syllables.get(base + tone) if tone else None
+    if not entry:
+        available = [t for t in "12345" if (base + t) in _pinyin_syllables]
+        hint = (
+            f"（“{base}”可用的声调：{'、'.join(available)}）" if available else "，请检查拼写。"
+        )
+        if tone:
+            raise RuntimeError(f"音节“{base}”没有声调 {tone} 的对应汉字{hint}")
+        raise RuntimeError(f"音节“{base}”没有任何对应汉字{hint}")
+    return tone, entry[0]
+
+
+def convert_pinyin(text: str) -> tuple[str, list[dict[str, object]], list[str]]:
+    """把拼音文本转换成同音汉字串。返回 (汉字串, 音节信息列表, 错误列表)。"""
+    _pinyin_load()
+    raw = str(text).strip()
+    if not raw:
+        raise RuntimeError("请输入拼音文本。")
+    chars: list[str] = []
+    info: list[dict[str, object]] = []
+    errors: list[str] = []
+    buffer: list[str] = []
+
+    def flush() -> None:
+        if not buffer:
+            return
+        chunk = "".join(buffer)
+        buffer.clear()
+        try:
+            plains, marks, digit_tones = _decode_pinyin_chunk(chunk)
+            for base, tone, erhua in _segment_pinyin(plains, marks, digit_tones):
+                if erhua:
+                    chars.append(ERHUA_CHAR)
+                    info.append(
+                        {"syl": "r", "char": ERHUA_CHAR, "tone": "", "erhua": True, "explicit": True}
+                    )
+                    continue
+                resolved, char = _resolve_syllable(base, tone)
+                chars.append(char)
+                info.append(
+                    {
+                        "syl": base + resolved,
+                        "char": char,
+                        "tone": resolved,
+                        "erhua": False,
+                        "explicit": bool(tone),
+                    }
+                )
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
+    for ch in raw:
+        if ch.isspace() or ch in "'’‘`":
+            flush()
+        elif ch in _PINYIN_PUNCT:
+            flush()
+            chars.append(ch)
+        else:
+            buffer.append(ch)
+    flush()
+
+    if not info and not errors:
+        errors.append("没有识别到任何拼音音节。")
+    if len(info) > PINYIN_MAX_SYLLABLES:
+        errors.append(f"音节太多（{len(info)} 个），请控制在 {PINYIN_MAX_SYLLABLES} 个以内。")
+    if len("".join(chars)) > PINYIN_MAX_CHARS:
+        errors.append(f"文本太长，请控制在 {PINYIN_MAX_CHARS} 个汉字以内。")
+    return "".join(chars), info, errors
+
+
+def pinyin_preview(payload: dict[str, object]) -> dict[str, object]:
+    """供前端实时预览：显示每个音节选用的同音字和错误。"""
+    text = str(payload.get("text", ""))[: PINYIN_MAX_CHARS * 2]
+    chars, info, errors = convert_pinyin(text)
+    return {"chars": chars, "syllables": info, "errors": errors[:8]}
+
+
 class ChatTTSEngine:
     """Lazily load ChatTTS and persist a stable set of speaker embeddings."""
 
@@ -455,7 +698,14 @@ class ChatTTSEngine:
             )
         self._speakers = {card["id"]: by_id[card["id"]] for card in VOICE_CARDS}
 
-    def synthesize(self, text: str, rate: int, voice: object):
+    def synthesize(self, text: str, rate: int, voice: object, mode: str = "zh"):
+        # 拼音模式先转换（不加载模型即可报出拼写错误），再合成同音汉字串。
+        converted = ""
+        if mode == "pinyin":
+            converted, _info, errors = convert_pinyin(text)
+            if errors:
+                detail = "；".join(str(e).rstrip("。") for e in errors[:3])
+                raise RuntimeError(detail + ("等。" if len(errors) > 3 else "。"))
         self._load()
         speaker, label = resolve_speaker(voice)
 
@@ -465,7 +715,8 @@ class ChatTTSEngine:
             assert self._chat is not None and self._chattts is not None
             assert self._numpy is not None
             speed = int(clamp(rate, 1, 9, 5))
-            seed_text = f"{label}\0{text}\0{rate}".encode("utf-8")
+            final_text = converted if mode == "pinyin" else text
+            seed_text = f"{label}\0{mode}\0{final_text}\0{rate}".encode("utf-8")
             seed = int(hashlib.sha256(seed_text).hexdigest()[:8], 16)
             infer_params = self._chattts.Chat.InferCodeParams(
                 spk_emb=speaker["spk_emb"],
@@ -480,9 +731,12 @@ class ChatTTSEngine:
             )
             try:
                 audio_list = self._chat.infer(
-                    text,
+                    final_text,
                     params_infer_code=infer_params,
                     lang="zh",
+                    # 拼音模式必须跳过 refine_text，否则模型可能把生造音节串
+                    # 改写成读音相近的正常词语，失去逐音节控制。
+                    skip_refine_text=(mode == "pinyin"),
                     do_text_normalization=True,
                     do_homophone_replacement=True,
                 )
@@ -509,7 +763,8 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
         raise RuntimeError("找不到 ffmpeg。请安装 ffmpeg 并加入 PATH。")
     text = str(params.get("chinese", "你好，我想设计一种自然、温暖、清晰的声音。"))[:2400].strip()
     if not text:
-        raise RuntimeError("请输入要朗读的中文文本。")
+        raise RuntimeError("请输入要朗读的文本。")
+    text_mode = "pinyin" if str(params.get("text_mode", "zh")) == "pinyin" else "zh"
     voice_id = str(params.get("base_voice", "speaker_001"))
     base_voice = (
         {"kind": "custom", "id": voice_id}
@@ -568,7 +823,7 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     saved_path = OUTPUT_DIR / filename
     with tempfile.TemporaryDirectory(prefix="voice-design-server-") as temp:
         source_path, render_path = Path(temp) / "source.wav", Path(temp) / "render.wav"
-        pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice)
+        pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice, mode=text_mode)
         with wave.open(str(source_path), "wb") as source_file:
             source_file.setnchannels(1)
             source_file.setsampwidth(2)
@@ -612,9 +867,10 @@ def preview_audio(payload: dict[str, object]) -> bytes:
     text = str(payload.get("text", default_text)).strip()[:600]
     if not text:
         text = default_text
+    text_mode = "pinyin" if str(payload.get("text_mode", "zh")) == "pinyin" else "zh"
     rate = int(clamp(payload.get("rate"), 1, 9, 5))
     voice = payload.get("voice")
-    pcm, sample_rate = ENGINE.synthesize(text, rate, voice)
+    pcm, sample_rate = ENGINE.synthesize(text, rate, voice, mode=text_mode)
     return wrap_wav(pcm, sample_rate)
 
 
@@ -999,6 +1255,10 @@ class Handler(BaseHTTPRequestHandler):
                 payload = self._read_json_body()
                 audio = preview_audio(payload)
                 self._send_wav(audio, "preview.wav")
+                return
+            if route == "/api/pinyin/preview":
+                payload = self._read_json_body()
+                self._send_json(200, pinyin_preview(payload))
                 return
             if route == "/api/speaker/save":
                 payload = self._read_json_body()
