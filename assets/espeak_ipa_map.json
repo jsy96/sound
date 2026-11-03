@@ -1,6 +1,6 @@
 {
  "format": 4,
- "generated": "2026-11-03T19:35:34",
+ "generated": "2026-11-03T20:38:04",
  "espeak": "eSpeak NG text-to-speech: 1.52.0  Data at: C:\\Program Files\\eSpeak NG\\/espeak-ng-data",
  "voices": [
   "ar",
@@ -961,6 +961,7 @@
    "cmn-latn-pinyin": "a",
    "de": "a",
    "en-gb": "a",
+   "en-us": "a",
    "es": "a",
    "fr": "a",
    "hi": "a",
@@ -977,6 +978,7 @@
    "cmn-latn-pinyin": "a`",
    "de": "a`",
    "en-gb": "a`",
+   "en-us": "a`",
    "es": "a`",
    "fr": "a`",
    "hi": "a`",
@@ -1396,6 +1398,7 @@
   "u": {
    "cmn": "u",
    "cmn-latn-pinyin": "u",
+   "it": "u",
    "vi": "u"
   },
   "xʷ": {
@@ -1419,6 +1422,7 @@
   "y": {
    "cmn": "y",
    "cmn-latn-pinyin": "y",
+   "de": "y",
    "vi": "y"
   },
   "z̥": {
@@ -1430,6 +1434,7 @@
    "cmn-latn-pinyin": "a~",
    "de": "a~",
    "en-gb": "a~",
+   "en-us": "a~",
    "es": "a~",
    "fr": "a~",
    "hi": "a~",
@@ -1439,6 +1444,22 @@
    "pl": "a~",
    "ru": "a~",
    "vi": "a~"
+  },
+  "æ": {
+   "ar": "{",
+   "cmn": "{",
+   "cmn-latn-pinyin": "{",
+   "de": "{",
+   "en-gb": "{",
+   "es": "{",
+   "fr": "{",
+   "hi": "{",
+   "it": "{",
+   "ja": "{",
+   "nl": "{",
+   "pl": "{",
+   "ru": "{",
+   "vi": "{"
   },
   "õ": {
    "cmn": "o~",
@@ -1453,14 +1474,24 @@
   "ũ": {
    "cmn": "u~",
    "cmn-latn-pinyin": "u~",
+   "it": "u~",
    "vi": "u~"
   },
   "ɑ": {
    "cmn": "A",
    "cmn-latn-pinyin": "A",
    "de": "A",
+   "en-gb": "A",
+   "en-us": "A",
+   "es": "A",
+   "fr": "A",
+   "hi": "A",
+   "it": "A",
+   "ja": "A",
    "nl": "A",
-   "ru": "A"
+   "pl": "A",
+   "ru": "A",
+   "vi": "A"
   },
   "ɑ̃": {
    "cmn": "A~",
@@ -1468,14 +1499,24 @@
    "de": "A~",
    "en-gb": "A~",
    "en-us": "A~",
+   "es": "A~",
    "fr": "A~",
+   "hi": "A~",
+   "it": "A~",
+   "ja": "A~",
    "nl": "A~",
-   "ru": "A~"
+   "pl": "A~",
+   "ru": "A~",
+   "vi": "A~"
   },
   "ɔ": {
+   "it": "O",
+   "ru": "O",
    "vi": "O"
   },
   "ɔ̃": {
+   "it": "O~",
+   "ru": "O~",
    "vi": "O~"
   },
   "ə": {
@@ -1486,11 +1527,13 @@
   "ɛ": {
    "cmn": "E",
    "cmn-latn-pinyin": "E",
+   "it": "E",
    "vi": "E"
   },
   "ɛ̃": {
    "cmn": "E~",
    "cmn-latn-pinyin": "E~",
+   "it": "E~",
    "vi": "E~"
   },
   "ʂ": {

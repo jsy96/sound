@@ -122,9 +122,10 @@ def find_espeak() -> str:
 def ipa_of(exe: str, voice: str, phonemes: str) -> str:
     done = subprocess.run(
         [exe, "-v", voice, "--ipa", "-q", "-x", f"[[{phonemes}]]"],
-        capture_output=True, text=True, timeout=TIMEOUT,
+        capture_output=True, timeout=TIMEOUT,
     )
-    return (done.stdout or "").strip()
+    # espeak 输出 UTF-8；Windows 上 text=True 默认按 GBK 解码会把 IPA 读成乱码
+    return done.stdout.decode("utf-8", errors="replace").strip()
 
 
 # 母语词自省：非 ASCII 词语经 stdin 传入（Windows 命令行传参会损坏编码）
@@ -170,7 +171,7 @@ def wav_size(exe: str, voice: str, phonemes: str) -> int:
         wav = Path(temp) / "t.wav"
         subprocess.run(
             [exe, "-v", voice, "-w", str(wav), f"[[{phonemes}]]"],
-            capture_output=True, text=True, timeout=TIMEOUT,
+            capture_output=True, timeout=TIMEOUT,
         )
         return wav.stat().st_size if wav.exists() else -1
 
@@ -200,12 +201,21 @@ def base_char(symbol: str) -> str:
     return unicodedata.normalize("NFD", symbol)[0]
 
 
+# 宽式层的元音族折叠：espeak 各声部把 /a/ 实现为 æ 或 ɑ、/e/ 实现为 ɛ 等，
+# 这正是「声部着色」——同族视为宽式命中。
+_VOWEL_FAMILY = {"æ": "a", "ɑ": "a", "ɒ": "a", "ɛ": "e", "ɜ": "e", "ɔ": "o", "ʊ": "u", "ʏ": "y", "œ": "ø"}
+
+
+def fold_vowels(s: str) -> str:
+    return "".join(_VOWEL_FAMILY.get(ch, ch) for ch in unicodedata.normalize("NFD", s))
+
+
 def main() -> None:
     exe = find_espeak()
-    version = subprocess.run([exe, "--version"], capture_output=True, text=True).stdout.strip()
+    version = subprocess.run([exe, "--version"], capture_output=True).stdout.decode("utf-8", errors="replace").strip()
     print(f"{version}\n{exe}")
 
-    voices_out = subprocess.run([exe, "--voices"], capture_output=True, text=True).stdout or ""
+    voices_out = subprocess.run([exe, "--voices"], capture_output=True).stdout.decode("utf-8", errors="replace") or ""
     langs = set(re.findall(r"\b([a-z]{2,3}(?:-[a-z0-9A-Z]+)*)\b", voices_out))
     probe_voices = [v for v in PROBE_VOICES if v in langs]
     print(f"声部：{probe_voices}")
@@ -222,7 +232,7 @@ def main() -> None:
                 continue
             if is_exact(symbol, out_bare) or is_exact(symbol, out_frame):
                 exact.setdefault(symbol, {})[voice] = code
-            elif base_char(symbol) in unicodedata.normalize("NFD", out_frame):
+            elif fold_vowels(base_char(symbol)) in fold_vowels(out_frame):
                 loose.setdefault(symbol, {})[voice] = code
         if (index + 1) % 20 == 0:
             print(f"  … {index + 1}/{total}（严式 {len(exact)} 宽式 {len(loose)}）", flush=True)
