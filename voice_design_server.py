@@ -957,6 +957,306 @@ def ipa_preview(payload: dict[str, object]) -> dict[str, object]:
     return {"chars": chars, "pinyin": pinyin_text, "syllables": info, "errors": errors[:8]}
 
 
+# ---------------------------------------------------------------- world IPA (espeak-ng)
+# 通用国际音标引擎：ChatTTS 只能发普通话音系内的音；要发任意语言的音，需要真正的
+# 音素级合成器。这里接入 espeak-ng（开源共振峰合成器，覆盖世界音素，音质为机械音）。
+#
+# espeak-ng 的音素输入是它自己的助记代码（如 tS=tʃ、@=ə），不是 IPA。因此本项目维护
+# 一张「IPA 符号 -> espeak 代码」映射表 assets/espeak_ipa_map.json，由
+# verify_espeak_map.py 逐条用真实 espeak-ng 验证生成（round-trip：输入代码，
+# 用 --ipa 输出比对）。表未生成或符号未通过验证时，运行时明确报错，不做静默近似。
+
+WORLD_MAP_FILE = ROOT / "assets" / "espeak_ipa_map.json"
+WORLD_MAX_SYMBOLS = 600
+WORLD_PUNCT = _PINYIN_PUNCT
+_world_lock = threading.Lock()
+_world_loaded = False
+_world_map: dict[str, dict[str, str]] = {}  # IPA 符号 -> {声部: espeak 代码}（多声部并记）
+_world_controls: dict[str, dict[str, str]] = {}  # 超音段符号 -> {声部: espeak 控制串}
+_world_attach: dict[str, bool] = {}  # 符号 -> 是否附着到前一个音素代码（长音/声调）
+_world_voices: list[str] = []  # 声部偏好序（preferred 在前）
+_world_bases: frozenset[str] = frozenset()
+# 变音符号（修饰字母/组合记号）：与基础符号组合成键。
+# 注意 ː（长音）不在此列——它是控制符号（附着到前一音素），由 controls 表处理。
+_WORLD_DIACRITICS = "ʰʲʷˠˤʼ̬̩̥̰̺̻̃̊̈̚"
+_WORLD_MAX_BASE = 3  # 最长基础符号字符数（tʃ、dʑ、ʈʂ 等）
+
+
+def _espeak_exe() -> str | None:
+    """找到 espeak-ng 可执行文件：PATH 优先，其次常见安装目录。"""
+    for name in ("espeak-ng", "espeak-ng.exe", "espeak", "espeak.exe"):
+        found = shutil.which(name)
+        if found:
+            return found
+    for candidate in (
+        r"C:\Program Files\eSpeak NG\espeak-ng.exe",
+        r"C:\Program Files (x86)\eSpeak NG\espeak-ng.exe",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
+def _world_load() -> None:
+    global _world_loaded, _world_map, _world_controls, _world_voices, _world_bases
+    with _world_lock:
+        if _world_loaded:
+            return
+        if not WORLD_MAP_FILE.exists():
+            raise RuntimeError(
+                "通用音标映射表尚未生成：请先安装 espeak-ng（winget install eSpeak-NG.eSpeak-NG），"
+                "然后在项目目录运行 .venv/Scripts/python.exe verify_espeak_map.py 生成 "
+                "assets/espeak_ipa_map.json。"
+            )
+        payload = json.loads(WORLD_MAP_FILE.read_text(encoding="utf-8"))
+        table = payload.get("map")
+        controls = payload.get("controls")
+        if not isinstance(table, dict) or not table or not isinstance(controls, dict):
+            raise RuntimeError("通用音标映射表内容不完整，请重新运行 verify_espeak_map.py。")
+        _world_map = {
+            str(k): {str(v): str(c) for v, c in vs.items()}
+            for k, vs in table.items()
+            if isinstance(vs, dict) and vs
+        }
+        _world_controls = {
+            str(k): {str(v): str(c) for v, c in vs.items()}
+            for k, vs in controls.items()
+            if isinstance(vs, dict) and vs
+        }
+        _world_attach = {str(k): bool(v) for k, v in payload.get("attach", {}).items()}
+        preferred = str(payload.get("preferred_voice", "en-us"))
+        voices = [str(v) for v in payload.get("voices", []) if isinstance(v, str)]
+        _world_voices = [preferred] + [v for v in voices if v != preferred]
+        if not _world_voices:
+            _world_voices = ["en-us"]
+        _world_bases = frozenset(
+            key for key in _world_map if key and all(ch not in _WORLD_DIACRITICS for ch in key)
+        )
+        _world_loaded = True
+
+
+def _world_tokenize(raw: str, errors: list[str]) -> list[str]:
+    """把 IPA 文本切成「基础符号+变音符号」或控制符号（声调/长音）；未知字符报错。"""
+    tokens: list[str] = []
+    position = 0
+    length = len(raw)
+    control_tokens = sorted(_world_controls, key=len, reverse=True)
+    while position < length:
+        ch = raw[position]
+        if ch.isspace():
+            position += 1
+            continue
+        if ch in WORLD_PUNCT:
+            tokens.append(ch)
+            position += 1
+            continue
+        # 控制符号（长音/声调，含多字符组合 ˧˥ ˨˩˦）
+        control = ""
+        for candidate in control_tokens:
+            if raw.startswith(candidate, position):
+                control = candidate
+                break
+        if control:
+            tokens.append(control)
+            position += len(control)
+            continue
+        base = ""
+        for size in range(_WORLD_MAX_BASE, 0, -1):
+            candidate = raw[position : position + size]
+            if candidate and candidate in _world_bases:
+                base = candidate
+                break
+        if not base:
+            errors.append(f"无法识别的字符“{ch}”；请使用标准 IPA 符号。")
+            position += 1
+            continue
+        position += len(base)
+        symbol = base
+        while position < length and raw[position] in _WORLD_DIACRITICS:
+            symbol += raw[position]
+            position += 1
+        tokens.append(symbol)
+    return tokens
+
+
+def _world_resolve(symbols: list[str]) -> tuple[str, str, list[dict[str, object]], list[str]]:
+    """选择覆盖输入符号最全的声部并解析代码。
+
+    返回 (声部, espeak 音素串, 符号信息, 错误)。长音/声调等「附着型」控制符号
+    会合并进前一个音素代码（espeak 的 [[...]] 要求 A:、A_3 形式才生效）。
+    """
+    errors: list[str] = []
+    phoneme_symbols = [s for s in symbols if s not in _world_controls]
+    control_symbols = [s for s in symbols if s in _world_controls]
+    score: dict[str, int] = {}
+    for symbol in phoneme_symbols:
+        for voice in _world_map.get(symbol, {}):
+            score[voice] = score.get(voice, 0) + 1
+    # 用到控制符号（长音/声调）时，为支持它们的声部加权——声调只在 tonal 声部有效，
+    # 否则「m a ˥」这类通用音素会把声部选成 en-us，声调就无处附着。
+    for symbol in control_symbols:
+        for voice in _world_controls.get(symbol, {}):
+            score[voice] = score.get(voice, 0) + len(phoneme_symbols)
+    voice = max(_world_voices, key=lambda v: score.get(v, 0))
+    codes: list[str] = []
+    info: list[dict[str, object]] = []
+    for symbol in symbols:
+        if symbol in _world_controls:
+            entry = _world_controls[symbol]
+            code = entry.get(voice)
+            if code is None:
+                errors.append(f"标记“{symbol}”在当前声部（{voice}）下不可用。")
+                info.append({"ipa": symbol, "espeak": "", "control": True, "supported": False})
+                continue
+            if _world_attach.get(symbol):
+                if not codes:
+                    errors.append(f"标记“{symbol}”前面没有音素。")
+                    info.append({"ipa": symbol, "espeak": "", "control": True, "supported": False})
+                    continue
+                codes[-1] = codes[-1] + code
+            else:
+                codes.append(code)
+            info.append(
+                {"ipa": symbol, "espeak": code, "control": True, "supported": True}
+            )
+            continue
+        entry = _world_map.get(symbol)
+        if not entry:
+            errors.append(f"符号“{symbol}”不在已验证的 espeak 音素表内，无法合成。")
+            info.append({"ipa": symbol, "espeak": "", "supported": False})
+            continue
+        code = entry.get(voice)
+        if code is None:
+            others = "、".join(sorted(entry))
+            errors.append(
+                f"符号“{symbol}”需要声部 {others}，与当前输入选定的声部（{voice}）不兼容；"
+                "请减少混用不同语言的音。"
+            )
+            info.append({"ipa": symbol, "espeak": "", "supported": False, "voices": sorted(entry)})
+            continue
+        codes.append(code)
+        info.append(
+            {"ipa": symbol, "espeak": code, "supported": True, "voices": sorted(entry)}
+        )
+    return voice, " ".join(codes), info, errors
+
+
+def world_parse(text: str) -> tuple[str, list[dict[str, object]], list[str]]:
+    """把通用 IPA 文本切分成符号序列并查映射。返回 (espeak 音素串, 符号信息, 错误)。"""
+    _world_load()
+    raw = str(text).strip()
+    if not raw:
+        raise RuntimeError("请输入通用音标。")
+    errors: list[str] = []
+    symbols = _world_tokenize(raw, errors)
+    _voice, phonemes, info, resolve_errors = _world_resolve(symbols)
+    errors.extend(resolve_errors)
+    if not info and not errors:
+        errors.append("没有识别到任何音标符号。")
+    if len(info) > WORLD_MAX_SYMBOLS:
+        errors.append(f"符号太多（{len(info)} 个），请控制在 {WORLD_MAX_SYMBOLS} 个以内。")
+    return phonemes, info, errors
+
+
+def _espeak_run(
+    phonemes: str, voice: str, rate: int, pitch_shift: float, volume: float
+) -> tuple[bytes, int]:
+    """调用 espeak-ng 合成音素串。返回 (pcm s16le bytes, sample_rate)。"""
+    exe = _espeak_exe()
+    if exe is None:
+        raise RuntimeError(
+            "找不到 espeak-ng。请安装 espeak-ng（winget install eSpeak-NG.eSpeak-NG）后重试。"
+        )
+    espeed = int(max(80, min(400, 90 + rate * 34)))  # 语速 1-9 -> 124..396 wpm
+    epitch = int(max(0, min(99, 50 + pitch_shift * 6)))  # 音高 -8..8 -> 2..98
+    eamp = int(max(0, min(200, 100 + volume * 6)))  # 音量 -8..8 -> 52..148
+    with tempfile.TemporaryDirectory(prefix="voice-espeak-") as temp:
+        wav_path = Path(temp) / "espeak.wav"
+        completed = subprocess.run(
+            [
+                exe, "-v", voice,
+                "-s", str(espeed), "-p", str(epitch), "-a", str(eamp),
+                "-w", str(wav_path), f"[[{phonemes}]]",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if completed.returncode or not wav_path.exists():
+            detail = (completed.stderr or completed.stdout or "").strip()[-400:]
+            raise RuntimeError(f"espeak-ng 合成失败：{detail or '未知错误'}")
+        with wave.open(str(wav_path), "rb") as wav_file:
+            rate = wav_file.getframerate()
+            channels = wav_file.getnchannels()
+            width = wav_file.getsampwidth()
+            frames = wav_file.readframes(wav_file.getnframes())
+        if channels < 1 or width != 2:
+            raise RuntimeError("espeak-ng 返回了不支持的音频格式。")
+        if channels > 1:
+            samples = struct.unpack(f"<{len(frames) // 2}h", frames)
+            mono = [
+                sum(samples[i : i + channels]) // channels
+                for i in range(0, len(samples) - channels + 1, channels)
+            ]
+            frames = struct.pack(f"<{len(mono)}h", *mono)
+        return frames, int(rate)
+
+
+def world_synthesize(text: str, rate: int, pitch: float, volume: float) -> tuple[bytes, int]:
+    """通用音标模式合成入口：IPA -> 选声部 -> espeak 音素 -> WAV PCM。"""
+    _world_load()
+    raw = str(text).strip()
+    if not raw:
+        raise RuntimeError("请输入通用音标。")
+    token_errors: list[str] = []
+    symbols = _world_tokenize(raw, token_errors)
+    if token_errors:
+        detail = "；".join(str(e).rstrip("。") for e in token_errors[:3])
+        raise RuntimeError(detail + ("等。" if len(token_errors) > 3 else "。"))
+    voice, phonemes, _info, errors = _world_resolve(symbols)
+    if errors:
+        detail = "；".join(str(e).rstrip("。") for e in errors[:3])
+        raise RuntimeError(detail + ("等。" if len(errors) > 3 else "。"))
+    return _espeak_run(phonemes, voice, rate, pitch, volume)
+
+
+def world_preview(payload: dict[str, object]) -> dict[str, object]:
+    """通用音标输入的实时预览：符号解析、选中声部、espeak 可用性与已验证符号集。"""
+    text = str(payload.get("text", ""))[: WORLD_MAX_SYMBOLS * 3]
+    try:
+        _world_load()
+    except RuntimeError as exc:
+        return {
+            "phonemes": "",
+            "voice": "",
+            "symbols": [],
+            "errors": [str(exc)],
+            "espeak": _espeak_exe() or "",
+            "supported": [],
+        }
+    raw = text.strip()
+    if not raw:
+        return {
+            "phonemes": "",
+            "voice": "",
+            "symbols": [],
+            "errors": [],
+            "espeak": _espeak_exe() or "",
+            "supported": sorted(set(_world_map) | set(_world_controls)),
+        }
+    token_errors: list[str] = []
+    symbols = _world_tokenize(raw, token_errors)
+    voice, phonemes, info, errors = _world_resolve(symbols)
+    return {
+        "phonemes": phonemes,
+        "voice": voice,
+        "symbols": info,
+        "errors": (token_errors + errors)[:8],
+        "espeak": _espeak_exe() or "",
+        "supported": sorted(set(_world_map) | set(_world_controls)),
+    }
+
+
 class ChatTTSEngine:
     """Lazily load ChatTTS and persist a stable set of speaker embeddings."""
 
@@ -1182,7 +1482,7 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     if not text:
         raise RuntimeError("请输入要朗读的文本。")
     raw_mode = str(params.get("text_mode", "zh"))
-    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa") else "zh"
+    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa", "world") else "zh"
     voice_id = str(params.get("base_voice", "speaker_001"))
     base_voice = (
         {"kind": "custom", "id": voice_id}
@@ -1241,7 +1541,11 @@ def render_audio(params: dict[str, object]) -> tuple[bytes, Path]:
     saved_path = OUTPUT_DIR / filename
     with tempfile.TemporaryDirectory(prefix="voice-design-server-") as temp:
         source_path, render_path = Path(temp) / "source.wav", Path(temp) / "render.wav"
-        pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice, mode=text_mode)
+        if text_mode == "world":
+            # 通用音标走 espeak-ng，不加载 ChatTTS；仅语速/音高/音量三个参数有效
+            pcm, sample_rate = world_synthesize(text, rate, pitch, volume)
+        else:
+            pcm, sample_rate = ENGINE.synthesize(text, rate, base_voice, mode=text_mode)
         with wave.open(str(source_path), "wb") as source_file:
             source_file.setnchannels(1)
             source_file.setsampwidth(2)
@@ -1286,10 +1590,14 @@ def preview_audio(payload: dict[str, object]) -> bytes:
     if not text:
         text = default_text
     raw_mode = str(payload.get("text_mode", "zh"))
-    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa") else "zh"
+    text_mode = raw_mode if raw_mode in ("zh", "pinyin", "ipa", "world") else "zh"
     rate = int(clamp(payload.get("rate"), 1, 9, 5))
     voice = payload.get("voice")
-    pcm, sample_rate = ENGINE.synthesize(text, rate, voice, mode=text_mode)
+    if text_mode == "world":
+        # 通用音标与音色无关（espeak 共振峰合成，没有说话人音色）
+        pcm, sample_rate = world_synthesize(text, rate, 0.0, 0.0)
+    else:
+        pcm, sample_rate = ENGINE.synthesize(text, rate, voice, mode=text_mode)
     return wrap_wav(pcm, sample_rate)
 
 
@@ -1682,6 +1990,10 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/ipa/preview":
                 payload = self._read_json_body()
                 self._send_json(200, ipa_preview(payload))
+                return
+            if route == "/api/world/preview":
+                payload = self._read_json_body()
+                self._send_json(200, world_preview(payload))
                 return
             if route == "/api/speaker/save":
                 payload = self._read_json_body()
